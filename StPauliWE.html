@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>St. Pauli WE - Cyberthriller Mobile HUD</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #070210;
+            --accent-purple: #a855f7;
+            --accent-cyan: #06b6d4;
+            --panel-bg: rgba(15, 10, 30, 0.75);
+            --border-glow: rgba(168, 85, 247, 0.4);
+            --text-main: #e2e8f0;
+        }
+
+        body.theme-edel {
+            --bg-color: #0d0203;
+            --accent-purple: #ef4444;
+            --accent-cyan: #eab308;
+            --panel-bg: rgba(25, 5, 8, 0.82);
+            --border-glow: rgba(239, 68, 68, 0.45);
+            --text-main: #fef08a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--text-main);
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-mono-code { font-family: 'Share Tech Mono', monospace; }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+
+        .glow-purple {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        /* Prevent unwanted zooming on interactive touch elements */
+        input, select, textarea, button {
+            font-size: 16px !important;
+            touch-action: manipulation;
+        }
+
+        /* DJ Rotary Knob Styling */
+        .knob-container {
+            touch-action: none;
+            user-select: none;
+        }
+
+        .knob-dial {
+            transition: transform 0.05s linear;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-cyan);
+            border-radius: 4px;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+
+        .scanline-effect::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, transparent, rgba(6, 182, 212, 0.08), transparent);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between items-center p-2 sm:p-4 overflow-hidden relative">
+    <!-- 2.5D Interactive Background Canvas -->
+    <canvas id="parallaxCanvas" class="fixed inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+    <!-- App Dynamic Custom Styles Holder -->
+    <style id="custom-user-stylesheet"></style>
+
+    <!-- Top System Nav Header -->
+    <header class="w-full max-w-md z-20 flex justify-between items-center mb-2 px-2">
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="font-orbitron font-extrabold text-sm tracking-wider text-cyan-300">ST. PAULI WE</span>
+            <span class="text-[10px] font-mono-code bg-purple-900/60 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/40">HUD v3.9</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleTheme()" class="px-2.5 py-1 text-xs rounded-lg glass-panel hover:bg-cyan-500/20 text-cyan-300 font-mono-code flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-palette text-xs"></i>
+                <span id="themeLabel">CYBER</span>
+            </button>
+            <button onclick="toggleAppMode()" class="px-2.5 py-1 text-xs rounded-lg glass-panel hover:bg-purple-500/20 text-purple-300 font-mono-code flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-sliders text-xs"></i>
+                <span id="modeBtnText">GAME MODE</span>
+            </button>
+            <button onclick="openModal('guideModal')" class="w-7 h-7 rounded-lg glass-panel flex items-center justify-center text-cyan-300 hover:text-white transition">
+                <i class="fa-solid fa-circle-info text-sm"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main TikTok-Style 9:16 Smartdevice Screen -->
+    <main class="w-full max-w-[410px] h-[calc(100vh-80px)] max-h-[820px] glass-panel rounded-3xl relative overflow-hidden flex flex-col justify-between z-10 border-cyan-500/30 scanline-effect shadow-2xl">
+        
+        <!-- Smartdevice Status Top HUD -->
+        <div class="w-full p-3 bg-slate-950/60 backdrop-blur-md flex justify-between items-center border-b border-cyan-500/20 text-[11px] font-mono-code z-20">
+            <div class="flex items-center gap-2 text-cyan-400">
+                <i class="fa-solid fa-satellite-dish animate-spin" style="animation-duration: 6s;"></i>
+                <span>LOC: 53.5511° N, 9.9616° E</span>
+            </div>
+            <div class="flex items-center gap-3 text-slate-300">
+                <span id="scanFreqDisplay" class="text-purple-300 font-bold">88.4 MHz</span>
+                <span class="text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-battery-three-quarters text-xs"></i> 94%</span>
+            </div>
+        </div>
+
+        <!-- Central Display Area: Character & Media Deck -->
+        <div class="relative flex-1 w-full overflow-hidden flex flex-col justify-between p-3">
+            
+            <!-- Character Avatar & Focal Target Layer -->
+            <div class="relative w-full h-52 rounded-2xl overflow-hidden glass-card flex items-center justify-center border border-purple-500/30">
+                
+                <!-- Dynamic Media Content Viewport -->
+                <div id="mediaViewport" class="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden">
+                    <div id="threeJsContainer" class="w-full h-full"></div>
+                    <video id="videoPlayer" class="w-full h-full object-cover hidden" loop muted playsinline></video>
+                    <iframe id="htmlIframe" class="w-full h-full border-none hidden"></iframe>
+                </div>
+
+                <!-- Focal Scanner Reticle Overlay (Drag Target) -->
+                <div id="focalReticle" class="absolute w-20 h-20 border-2 border-dashed border-cyan-400 rounded-full flex items-center justify-center cursor-move shadow-lg z-20 transition-transform active:scale-95" style="top: 25%; left: 38%;">
+                    <div class="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
+                    <div class="absolute -bottom-5 text-[9px] font-mono-code bg-black/80 px-1.5 py-0.5 rounded text-cyan-300 whitespace-nowrap">TARGET FOCUS</div>
+                </div>
+
+                <!-- Character Overlay Details Badge -->
+                <div class="absolute top-2 left-2 z-10 glass-panel px-2.5 py-1 rounded-xl flex items-center gap-2">
+                    <img id="avatarImg" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" class="w-8 h-8 rounded-full border border-cyan-400 object-cover" alt="Character Avatar">
+                    <div>
+                        <div id="profileName" class="font-bold text-xs text-white leading-tight">Valerie Vance</div>
+                        <div id="profileTag" class="text-[10px] text-cyan-300 font-mono-code">@stpauli_synth</div>
+                    </div>
+                </div>
+
+                <!-- HUD Reticle Sensor Data -->
+                <div class="absolute bottom-2 left-2 z-10 font-mono-code text-[10px] text-purple-300 bg-black/60 px-2 py-0.5 rounded">
+                    BIO-METRIC: SYNCHRONIZED
+                </div>
+            </div>
+
+            <!-- Narrator & Novel Game Interactive Box -->
+            <div class="mt-2 p-3 glass-panel rounded-2xl border-purple-500/40 relative z-10 flex-1 flex flex-col justify-between min-h-[160px]">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="narratorName" class="text-xs font-bold font-orbitron text-purple-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-robot text-cyan-400 text-xs"></i> AI STEWARD VOX
+                        </span>
+                        <span id="chapterTitleDisplay" class="text-[10px] font-mono-code text-slate-400">CH-01 // REEPERBAHN</span>
+                    </div>
+                    <p id="typewriterText" class="text-xs leading-relaxed text-slate-200 font-mono-code min-h-[50px]"></p>
+                </div>
+
+                <!-- Dynamic Story Decision Buttons -->
+                <div id="storyChoicesContainer" class="grid grid-cols-2 gap-2 mt-2">
+                    <!-- Dynamic choice buttons inserted via JS -->
+                </div>
+            </div>
+
+            <!-- TikTok Style Interactive Floating Sidebar -->
+            <div class="absolute right-4 top-16 z-30 flex flex-col items-center gap-4">
+                <button onclick="toggleNeuralLike()" class="flex flex-col items-center group">
+                    <div class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-slate-300 group-hover:text-red-500 transition border-red-500/30">
+                        <i id="likeIcon" class="fa-solid fa-heart text-base transition-transform"></i>
+                    </div>
+                    <span id="likeCount" class="text-[10px] font-mono-code text-slate-300 mt-1">1.4K</span>
+                </button>
+
+                <button onclick="toggleStoryIndexModal()" class="flex flex-col items-center group">
+                    <div class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-cyan-300 group-hover:text-cyan-200 transition border-cyan-500/30">
+                        <i class="fa-solid fa-book-open text-sm"></i>
+                    </div>
+                    <span class="text-[10px] font-mono-code text-slate-300 mt-1">INDEX</span>
+                </button>
+
+                <button onclick="openFocalTargetModal()" class="flex flex-col items-center group">
+                    <div class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-purple-300 group-hover:text-purple-200 transition border-purple-500/30">
+                        <i class="fa-solid fa-crosshairs text-sm"></i>
+                    </div>
+                    <span class="text-[10px] font-mono-code text-slate-300 mt-1">FOCUS</span>
+                </button>
+
+                <button onclick="openModal('mediaLinksModal')" class="flex flex-col items-center group">
+                    <div class="w-10 h-10 rounded-full glass-panel flex items-center justify-center text-amber-300 group-hover:text-amber-200 transition border-amber-500/30">
+                        <i class="fa-solid fa-photo-film text-sm"></i>
+                    </div>
+                    <span class="text-[10px] font-mono-code text-slate-300 mt-1">MEDIA</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Controller Deck with Futuristic Rotary Dial Knobs -->
+        <div class="p-3 bg-slate-950/80 backdrop-blur-lg border-t border-cyan-500/20 z-20 flex flex-col gap-2">
+            
+            <!-- DJ Rotary Knobs Row -->
+            <div class="flex justify-around items-center pt-1">
+                <!-- Knob 1: Grid Tilt -->
+                <div class="flex flex-col items-center knob-container" id="knob1">
+                    <div class="w-11 h-11 rounded-full glass-panel border-cyan-400/50 flex items-center justify-center relative cursor-grab active:cursor-grabbing">
+                        <div class="knob-dial w-full h-full rounded-full flex items-start justify-center pt-1">
+                            <div class="w-1 h-3 bg-cyan-400 rounded-full"></div>
+                        </div>
+                    </div>
+                    <span class="text-[9px] font-mono-code text-cyan-300 mt-1">TILT GRID</span>
+                    <span id="knob1Value" class="text-[10px] font-bold text-white">50%</span>
+                </div>
+
+                <!-- Knob 2: Scan Frequency -->
+                <div class="flex flex-col items-center knob-container" id="knob2">
+                    <div class="w-11 h-11 rounded-full glass-panel border-purple-400/50 flex items-center justify-center relative cursor-grab active:cursor-grabbing">
+                        <div class="knob-dial w-full h-full rounded-full flex items-start justify-center pt-1">
+                            <div class="w-1 h-3 bg-purple-400 rounded-full"></div>
+                        </div>
+                    </div>
+                    <span class="text-[9px] font-mono-code text-purple-300 mt-1">FREQ HZ</span>
+                    <span id="knob2Value" class="text-[10px] font-bold text-white">88.4</span>
+                </div>
+
+                <!-- Audio Playback Synth Button -->
+                <div class="flex flex-col items-center">
+                    <button onclick="toggleAudioPlayback()" class="w-11 h-11 rounded-full bg-gradient-to-tr from-cyan-600 to-purple-600 flex items-center justify-center text-white shadow-lg hover:scale-105 transition active:scale-95">
+                        <i id="audioPlayIcon" class="fa-solid fa-play text-sm"></i>
+                    </button>
+                    <span class="text-[9px] font-mono-code text-amber-300 mt-1">SYNTH AUDIO</span>
+                    <span class="text-[10px] font-bold text-white">M4A LIVE</span>
+                </div>
+            </div>
+
+            <!-- Audio Equalizer Visualizer Bar -->
+            <div id="eqBarsContainer" class="w-full h-4 flex items-end gap-1 px-2 pt-1 overflow-hidden">
+                <!-- EQ bars injected via JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal 1: Story Index Modal -->
+    <div id="storyIndexModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-sm glass-panel rounded-3xl p-5 border-cyan-500/40 relative">
+            <button onclick="closeModal('storyIndexModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-base font-orbitron font-bold text-cyan-300 mb-1">ST. PAULI WE INDEX</h3>
+            <p class="text-xs text-slate-400 font-mono-code mb-4">Cyberthriller Interactive Chapter Logs</p>
+            
+            <div id="chapterListContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <!-- Chapters dynamic list -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Custom Editor & Stylesheet Modal -->
+    <div id="editorModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-3xl p-5 border-purple-500/40 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('editorModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-base font-orbitron font-bold text-purple-300 mb-1">HUD SYSTEM EDITOR</h3>
+            <p class="text-xs text-slate-400 font-mono-code mb-4">Edit Profile, Story, Media & Custom CSS</p>
+            
+            <div class="space-y-3 font-mono-code text-xs">
+                <div>
+                    <label class="block text-cyan-300 mb-1">Character Profile Name</label>
+                    <input id="inputProfileName" type="text" value="Valerie Vance" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 text-white focus:border-cyan-400 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-cyan-300 mb-1">Profile Tag</label>
+                    <input id="inputProfileTag" type="text" value="@stpauli_synth" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 text-white focus:border-cyan-400 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-cyan-300 mb-1">Avatar Image URL</label>
+                    <input id="inputAvatarUrl" type="text" value="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 text-white focus:border-cyan-400 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-purple-300 mb-1">Current Chapter Text Narrative</label>
+                    <textarea id="inputStoryText" rows="3" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 text-white focus:border-purple-400 outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-amber-300 mb-1">Inject Custom User Stylesheet (CSS)</label>
+                    <textarea id="inputCustomCss" rows="3" placeholder="/* Custom CSS */ body { filter: contrast(105%); }" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-2.5 text-white focus:border-amber-400 outline-none"></textarea>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveEditorChanges()" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl font-bold text-white hover:opacity-90 transition">SAVE CHANGES</button>
+                    <button onclick="exportStateJson()" class="px-3 py-2.5 bg-slate-800 rounded-xl text-slate-300 hover:text-white border border-slate-700">EXPORT JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Media Launcher Modal -->
+    <div id="mediaLinksModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-sm glass-panel rounded-3xl p-5 border-amber-500/40 relative">
+            <button onclick="closeModal('mediaLinksModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-base font-orbitron font-bold text-amber-300 mb-1">MULTI-MEDIA DECK</h3>
+            <p class="text-xs text-slate-400 font-mono-code mb-4">Link or preview cyber media formats</p>
+            
+            <div class="space-y-2">
+                <button onclick="loadMediaPreset('3d')" class="w-full p-3 glass-card rounded-xl text-left hover:border-cyan-400 transition flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-bold text-cyan-300">3D Interactive Wireframe (.GLB / Mesh)</div>
+                        <div class="text-[10px] text-slate-400 font-mono-code">Three.js Holographic render</div>
+                    </div>
+                    <i class="fa-solid fa-cube text-cyan-400"></i>
+                </button>
+
+                <button onclick="loadMediaPreset('video')" class="w-full p-3 glass-card rounded-xl text-left hover:border-purple-400 transition flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-bold text-purple-300">Cyberpunk Street Feed (.MP4 Video)</div>
+                        <div class="text-[10px] text-slate-400 font-mono-code">Live stream feed</div>
+                    </div>
+                    <i class="fa-solid fa-film text-purple-400"></i>
+                </button>
+
+                <button onclick="loadMediaPreset('html')" class="w-full p-3 glass-card rounded-xl text-left hover:border-emerald-400 transition flex items-center justify-between">
+                    <div>
+                        <div class="text-xs font-bold text-emerald-300">HTML Live Presentation / Web App</div>
+                        <div class="text-[10px] text-slate-400 font-mono-code">Embedded iframe stream</div>
+                    </div>
+                    <i class="fa-solid fa-code text-emerald-400"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Guide & Implementation Manual -->
+    <div id="guideModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="w-full max-w-md glass-panel rounded-3xl p-5 border-cyan-500/40 relative max-h-[85vh] overflow-y-auto">
+            <button onclick="closeModal('guideModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-base font-orbitron font-bold text-cyan-300 mb-1">ST. PAULI WE GUIDE</h3>
+            <p class="text-xs text-slate-400 font-mono-code mb-4">Implementation & Usage Manual</p>
+            
+            <div class="space-y-3 font-mono-code text-xs text-slate-300 leading-relaxed">
+                <div class="p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl">
+                    <div class="font-bold text-cyan-300 mb-1">1. TikTok 9:16 Smart Device HUD</div>
+                    <p>Designed as a mobile-first tricorder overlay inspired by sci-fi cyberthrillers. Fits perfectly on mobile screens with responsive layout and touch interactions.</p>
+                </div>
+
+                <div class="p-3 bg-purple-950/40 border border-purple-500/30 rounded-xl">
+                    <div class="font-bold text-purple-300 mb-1">2. Zero Zoom Input Protection</div>
+                    <p>All input controls and rotary DJ dials utilize <code class="bg-black/50 px-1 rounded">touch-action: manipulation</code> and 16px font locks to prevent browser pinch/double-tap auto-zooming.</p>
+                </div>
+
+                <div class="p-3 bg-amber-950/40 border border-amber-500/30 rounded-xl">
+                    <div class="font-bold text-amber-300 mb-1">3. Dynamic Parallax 2.5D & Knobs</div>
+                    <p>Drag the bottom DJ knobs to shift perspective grid tilt and modify scan frequency dynamically in real-time.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Unhandled Exception Safeguard
+        window.addEventListener('unhandledrejection', function(event) {
+            event.preventDefault();
+            console.warn('Handled unhandled promise rejection:', event.reason);
+        });
+
+        const state = {
+            theme: 'cyber', // 'cyber' or 'edel'
+            mode: 'game',  // 'game' or 'editor'
+            liked: false,
+            likeCount: 1420,
+            storyChapterIndex: 0,
+            gridTilt: 50,
+            scanFreq: 88.4,
+            currentMediaType: '3d', // '3d', 'video', 'html', 'audio'
+            isAudioPlaying: false,
+            typewriterInterval: null
+        };
+
+        // Story Chapters for St. Pauli WE Cyberthriller
+        const storyChapters = [
+            {
+                title: "Chapter 1: The Reeperbahn Neural Anomaly",
+                narrator: "H4MBURG-X",
+                text: "Deep underneath the Reeperbahn in Hamburg St. Pauli, a rogue quantum pulse destabilizes the neural sub-grid. You are dispatched to investigate.",
+                choices: ["Scan Neural Node", "Decrypt File StPauli"]
+            },
+            {
+                title: "Chapter 2: Elbphilharmonie Beacon",
+                narrator: "AI Steward Vox",
+                text: "Signals bounce from the Elbphilharmonie roof antennas down into the harbor tunnels. An encrypted cyber-deck is requesting handshake authorization.",
+                choices: ["Establish Link", "Bypassing Firewall"]
+            },
+            {
+                title: "Chapter 3: St. Pauli Harbor Syndicate",
+                narrator: "Operative K3RL",
+                text: "The harbor docks flicker in hologram violet. The AI steward reveals the secret index of St. Pauli WE: a decentralized resistant mainframe.",
+                choices: ["Upload Core Code", "Initiate Lockdown"]
+            }
+        ];
+
+        const canvas = document.getElementById('parallaxCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let mouseX = 0, mouseY = 0;
+        let stars = [];
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initStars();
+        }
+
+        function initStars() {
+            stars = [];
+            const numStars = Math.floor((width * height) / 3000);
+            for (let i = 0; i < numStars; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    z: Math.random() * 2 + 0.2,
+                    size: Math.random() * 1.8 + 0.5,
+                    color: Math.random() > 0.5 ? '#a855f7' : '#06b6d4'
+                });
+            }
+        }
+
+        function drawParallaxBackground() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Dynamic Stars with Parallax Motion
+            stars.forEach(star => {
+                const offsetX = (mouseX - width / 2) * star.z * 0.02;
+                const offsetY = (mouseY - height / 2) * star.z * 0.02;
+                
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x + offsetX, star.y + offsetY, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw 2.5D Perspective Grid at Bottom
+            const gridY = height * 0.65;
+            const tiltFactor = (state.gridTilt / 100) * 40;
+            ctx.strokeStyle = state.theme === 'cyber' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(239, 68, 68, 0.25)';
+            ctx.lineWidth = 1;
+
+            ctx.beginPath();
+            for (let x = -width; x < width * 2; x += 40) {
+                ctx.moveTo(x + (mouseX - width/2)*0.05, height);
+                ctx.lineTo(width / 2 + (x - width/2) * 0.2, gridY + tiltFactor);
+            }
+            for (let y = gridY; y < height; y += 15) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+
+            requestAnimationFrame(drawParallaxBackground);
+        }
+
+        let scene, camera, renderer, holoMesh;
+
+        function initThreeJS() {
+            try {
+                const container = document.getElementById('threeJsContainer');
+                if (!container) return;
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.z = 4;
+
+                renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, failIfMajorPerformanceCaveat: false });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                container.appendChild(renderer.domElement);
+
+                // Wireframe Icosahedron Cyber Mesh
+                const geometry = new THREE.IcosahedronGeometry(1.4, 2);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xa855f7,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.75
+                });
+                holoMesh = new THREE.Mesh(geometry, material);
+                scene.add(holoMesh);
+
+                // Inner Glowing Core
+                const coreGeo = new THREE.SphereGeometry(0.7, 16, 16);
+                const coreMat = new THREE.MeshBasicMaterial({
+                    color: 0x06b6d4,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.5
+                });
+                const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+                holoMesh.add(coreMesh);
+
+                function animateThree() {
+                    requestAnimationFrame(animateThree);
+                    if (holoMesh) {
+                        holoMesh.rotation.x += 0.005;
+                        holoMesh.rotation.y += 0.008;
+                    }
+                    if (renderer && scene && camera) {
+                        renderer.render(scene, camera);
+                    }
+                }
+                animateThree();
+            } catch (err) {
+                console.warn('WebGL initialization skipped or not supported:', err);
+            }
+        }
+
+        function setupKnobs() {
+            setupKnobDrag('knob1', (val) => {
+                state.gridTilt = val;
+                document.getElementById('knob1Value').innerText = `${Math.round(val)}%`;
+            });
+
+            setupKnobDrag('knob2', (val) => {
+                state.scanFreq = (70 + (val / 100) * 40).toFixed(1);
+                document.getElementById('knob2Value').innerText = `${state.scanFreq}`;
+                document.getElementById('scanFreqDisplay').innerText = `${state.scanFreq} MHz`;
+            });
+
+            // Initialize EQ Bars
+            const eqContainer = document.getElementById('eqBarsContainer');
+            eqContainer.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'flex-1 bg-gradient-to-t from-cyan-500 to-purple-500 rounded-t transition-all duration-300';
+                bar.style.height = `${Math.random() * 100}%`;
+                eqContainer.appendChild(bar);
+            }
+
+            // Animate EQ bars periodically
+            setInterval(() => {
+                const bars = eqContainer.children;
+                for (let i = 0; i < bars.length; i++) {
+                    bars[i].style.height = `${Math.floor(Math.random() * 90) + 10}%`;
+                }
+            }, 250);
+        }
+
+        function setupKnobDrag(knobId, callback) {
+            const el = document.getElementById(knobId);
+            if (!el) return;
+            const dial = el.querySelector('.knob-dial');
+            let isDragging = false;
+            let startY = 0;
+            let currentRotation = 0;
+
+            const onStart = (e) => {
+                isDragging = true;
+                startY = e.touches ? e.touches[0].clientY : e.clientY;
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const deltaY = startY - clientY;
+                startY = clientY;
+
+                currentRotation = Math.max(-135, Math.min(135, currentRotation + deltaY * 2));
+                dial.style.transform = `rotate(${currentRotation}deg)`;
+                
+                const percent = ((currentRotation + 135) / 270) * 100;
+                callback(percent);
+            };
+
+            const onEnd = () => {
+                isDragging = false;
+            };
+
+            el.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+
+            el.addEventListener('touchstart', onStart, { passive: true });
+            window.addEventListener('touchmove', onMove, { passive: true });
+            window.addEventListener('touchend', onEnd);
+        }
+
+        function setupFocalReticleDrag() {
+            const reticle = document.getElementById('focalReticle');
+            if (!reticle) return;
+            let isDragging = false;
+            let offsetX = 0, offsetY = 0;
+
+            const onStart = (e) => {
+                isDragging = true;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const rect = reticle.getBoundingClientRect();
+                offsetX = clientX - rect.left;
+                offsetY = clientY - rect.top;
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+                const parentRect = reticle.parentElement.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                let left = clientX - parentRect.left - offsetX;
+                let top = clientY - parentRect.top - offsetY;
+
+                left = Math.max(0, Math.min(parentRect.width - reticle.offsetWidth, left));
+                top = Math.max(0, Math.min(parentRect.height - reticle.offsetHeight, top));
+
+                reticle.style.left = `${left}px`;
+                reticle.style.top = `${top}px`;
+            };
+
+            const onEnd = () => { isDragging = false; };
+
+            reticle.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+
+            reticle.addEventListener('touchstart', onStart, { passive: true });
+            window.addEventListener('touchmove', onMove, { passive: true });
+            window.addEventListener('touchend', onEnd);
+        }
+
+        function updateChapterDisplay() {
+            const ch = storyChapters[state.storyChapterIndex];
+            document.getElementById('narratorName').innerHTML = `<i class="fa-solid fa-robot text-cyan-400 text-xs"></i> ${ch.narrator}`;
+            document.getElementById('chapterTitleDisplay').innerText = `CH-0${state.storyChapterIndex + 1}`;
+
+            // Typewriter Effect
+            const targetEl = document.getElementById('typewriterText');
+            targetEl.innerHTML = '';
+            if (state.typewriterInterval) clearInterval(state.typewriterInterval);
+
+            let charIdx = 0;
+            state.typewriterInterval = setInterval(() => {
+                if (charIdx < ch.text.length) {
+                    targetEl.innerHTML += ch.text.charAt(charIdx);
+                    charIdx++;
+                } else {
+                    clearInterval(state.typewriterInterval);
+                }
+            }, 25);
+
+            // Render Choices
+            const choicesContainer = document.getElementById('storyChoicesContainer');
+            choicesContainer.innerHTML = ch.choices.map((choice, i) => `
+                <button onclick="nextChapterStep(${i})" class="py-2 px-3 glass-card hover:bg-cyan-500/20 rounded-xl text-[11px] font-mono-code text-cyan-300 border border-cyan-500/30 transition text-left truncate">
+                    <i class="fa-solid fa-chevron-right text-[9px] mr-1"></i>${choice}
+                </button>
+            `).join('');
+        }
+
+        function nextChapterStep(choiceIndex) {
+            state.storyChapterIndex = (state.storyChapterIndex + 1) % storyChapters.length;
+            updateChapterDisplay();
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeLabel = document.getElementById('themeLabel');
+            if (state.theme === 'cyber') {
+                state.theme = 'edel';
+                body.classList.add('theme-edel');
+                themeLabel.innerText = 'EDEL';
+            } else {
+                state.theme = 'cyber';
+                body.classList.remove('theme-edel');
+                themeLabel.innerText = 'CYBER';
+            }
+        }
+
+        let audioCtx = null;
+        let synthOsc = null;
+        let gainNode = null;
+
+        function toggleAudioPlayback() {
+            state.isAudioPlaying = !state.isAudioPlaying;
+            const icon = document.getElementById('audioPlayIcon');
+            if (state.isAudioPlaying) {
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+                startSynthAudio();
+            } else {
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+                stopSynthAudio();
+            }
+        }
+
+        function startSynthAudio() {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!audioCtx && AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+                if (audioCtx) {
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume().catch(e => console.warn('AudioContext resume rejected:', e));
+                    }
+                    if (!synthOsc) {
+                        synthOsc = audioCtx.createOscillator();
+                        gainNode = audioCtx.createGain();
+                        synthOsc.type = 'sine';
+                        synthOsc.frequency.setValueAtTime(110, audioCtx.currentTime);
+                        gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                        synthOsc.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        synthOsc.start();
+                    }
+                }
+            } catch (e) {
+                console.warn('Audio synthesis operation not supported:', e);
+            }
+        }
+
+        function stopSynthAudio() {
+            try {
+                if (synthOsc) {
+                    synthOsc.stop();
+                    synthOsc.disconnect();
+                    synthOsc = null;
+                }
+            } catch (e) {
+                console.warn('Error stopping audio synth:', e);
+            }
+        }
+
+        function toggleAppMode() {
+            if (state.mode === 'game') {
+                state.mode = 'editor';
+                document.getElementById('modeBtnText').innerText = 'EDIT MODE';
+                openModal('editorModal');
+            } else {
+                state.mode = 'game';
+                document.getElementById('modeBtnText').innerText = 'GAME MODE';
+                closeModal('editorModal');
+            }
+        }
+
+        function toggleNeuralLike() {
+            state.liked = !state.liked;
+            const icon = document.getElementById('likeIcon');
+            const count = document.getElementById('likeCount');
+
+            if (state.liked) {
+                icon.classList.remove('text-slate-300');
+                icon.classList.add('text-red-500', 'scale-125');
+                state.likeCount++;
+            } else {
+                icon.classList.remove('text-red-500', 'scale-125');
+                icon.classList.add('text-slate-300');
+                state.likeCount--;
+            }
+            count.innerText = `${(state.likeCount / 1000).toFixed(1)}K`;
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function toggleStoryIndexModal() {
+            const modal = document.getElementById('storyIndexModal');
+            if (modal.classList.contains('hidden')) {
+                openStoryIndexModal();
+            } else {
+                closeModal('storyIndexModal');
+            }
+        }
+
+        function openFocalTargetModal() {
+            openModal('guideModal');
+        }
+
+        function openStoryIndexModal() {
+            const container = document.getElementById('chapterListContainer');
+            container.innerHTML = storyChapters.map((ch, idx) => `
+                <div onclick="selectChapter(${idx})" class="p-3 glass-panel rounded-xl border-cyan-500/30 hover:border-cyan-400 cursor-pointer transition flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-xs text-cyan-300">${ch.title}</div>
+                        <div class="text-[10px] text-slate-400 font-mono-code">${ch.narrator}</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-cyan-400"></i>
+                </div>
+            `).join('');
+            openModal('storyIndexModal');
+        }
+
+        function selectChapter(idx) {
+            state.storyChapterIndex = idx;
+            updateChapterDisplay();
+            closeModal('storyIndexModal');
+        }
+
+        function loadMediaPreset(type) {
+            state.currentMediaType = type;
+            const threeContainer = document.getElementById('threeJsContainer');
+            const video = document.getElementById('videoPlayer');
+            const iframe = document.getElementById('htmlIframe');
+
+            threeContainer.classList.add('hidden');
+            video.classList.add('hidden');
+            iframe.classList.add('hidden');
+
+            if (type === '3d') {
+                threeContainer.classList.remove('hidden');
+            } else if (type === 'video') {
+                video.classList.remove('hidden');
+                video.src = 'https://assets.mixkit.co/videos/preview/mixkit-cyber-punk-city-street-41564-large.mp4';
+                try {
+                    const playPromise = video.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => console.warn('Video play rejected or unsupported:', err));
+                    }
+                } catch(err) {
+                    console.warn('Video play operation unsupported:', err);
+                }
+            } else if (type === 'html') {
+                iframe.classList.remove('hidden');
+                iframe.srcdoc = `
+                    <body style="background:#070210; color:#06b6d4; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0;">
+                        <h2 style="font-size:16px;">ST. PAULI WE LIVE HTML PRESENTATION</h2>
+                        <p style="font-size:12px; opacity:0.8;">Dynamic embedded web content streaming into HUD frame...</p>
+                    </body>
+                `;
+            } else if (type === 'audio') {
+                toggleAudioPlayback();
+            }
+            closeModal('mediaLinksModal');
+        }
+
+        function saveEditorChanges() {
+            const name = document.getElementById('inputProfileName').value;
+            const tag = document.getElementById('inputProfileTag').value;
+            const avatar = document.getElementById('inputAvatarUrl').value;
+            const text = document.getElementById('inputStoryText').value;
+            const css = document.getElementById('inputCustomCss').value;
+
+            document.getElementById('profileName').innerText = name;
+            document.getElementById('profileTag').innerText = tag;
+            document.getElementById('avatarImg').src = avatar;
+            storyChapters[state.storyChapterIndex].text = text;
+            updateChapterDisplay();
+
+            document.getElementById('custom-user-stylesheet').innerHTML += `\n${css}`;
+            closeModal('editorModal');
+        }
+
+        function exportStateJson() {
+            const jsonStr = JSON.stringify(state, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'StPauliWE_State.json';
+            a.click();
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (camera && renderer) {
+                const container = document.getElementById('threeJsContainer');
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        });
+
+        window.onload = function() {
+            resizeCanvas();
+            drawParallaxBackground();
+            initThreeJS();
+            updateChapterDisplay();
+            setupFocalReticleDrag();
+            setupKnobs();
+        };
+    </script>
+</body>
+</html>
