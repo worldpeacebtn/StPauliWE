@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>St. Pauli WE - Cosmic Utopian Experience</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js 3D Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Cosmic Theme Defaults based on reference */
+            --bg-deep: #05051a;
+            --accent-pink: #f06292;
+            --accent-cyan: #4dd0e1;
+            --accent-purple: #ba68c8;
+            --panel-bg: rgba(10, 10, 35, 0.4);
+            --panel-border: rgba(77, 208, 225, 0.3);
+            --glow-cyan: 0 0 15px rgba(77, 208, 225, 0.5);
+            --glow-pink: 0 0 15px rgba(240, 98, 146, 0.5);
+            --text-main: #f8fafc;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text-main);
+            overflow: hidden;
+            touch-action: none; /* Prevent pull-to-refresh on mobile */
+            background-image: radial-gradient(circle at center, #1a0b2e 0%, #05051a 100%);
+        }
+
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+        .glass-btn:hover, .glass-btn.active {
+            background: rgba(77, 208, 225, 0.15);
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+            color: #fff;
+        }
+
+        /* Draggable Window System */
+        .drag-window {
+            position: absolute;
+            z-index: 40;
+            display: flex;
+            flex-col;
+            min-width: 300px;
+        }
+        .drag-header {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .drag-header:active { cursor: grabbing; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-cyan); border-radius: 4px; }
+
+        /* Dynamic Dropzones */
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+        .dropzone.active {
+            border-color: var(--accent-pink);
+            background: rgba(240, 98, 146, 0.1);
+            box-shadow: var(--glow-pink);
+        }
+
+        /* Joystick & Controls */
+        #joystick-zone {
+            position: absolute; left: 40px; bottom: 40px;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            border: 2px solid rgba(77, 208, 225, 0.3);
+            background: radial-gradient(circle, rgba(77, 208, 225, 0.1) 0%, transparent 70%);
+            touch-action: none;
+            z-index: 30;
+        }
+        #joystick-knob {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: var(--glow-cyan);
+            pointer-events: none;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Rangeslider */
+        input[type=range] {
+            -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px;
+            border-radius: 50%; background: var(--accent-cyan);
+            cursor: pointer; box-shadow: var(--glow-cyan);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer;
+            background: rgba(255,255,255,0.2); border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="h-full w-full relative overflow-hidden select-none">
+
+    <!-- Fullscreen 3D Stage -->
+    <div id="threeJsContainer" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="absolute inset-0 z-10 pointer-events-none">
+        
+        <!-- Top Center Media Player -->
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center glass-panel px-6 py-3 gap-6">
+            <div class="flex flex-col">
+                <span class="text-[10px] text-gray-400 font-outfit tracking-widest uppercase">Now Playing</span>
+                <span id="currentTrackName" class="text-sm font-bold text-white">Cosmic_Currents.wav</span>
+            </div>
+            
+            <div class="flex-1 w-48 h-8 flex items-center gap-[2px]" id="eqVisualizer">
+                <!-- EQ bars injected via JS -->
+            </div>
+
+            <div class="flex items-center gap-4 text-gray-300">
+                <button class="hover:text-cyan-400 transition"><i class="fa-solid fa-backward-step"></i></button>
+                <button onclick="toggleGlobalAudio()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-cyan-400/20 hover:text-cyan-400 border border-white/20 transition shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+                    <i id="mainPlayBtn" class="fa-solid fa-play"></i>
+                </button>
+                <button class="hover:text-cyan-400 transition"><i class="fa-solid fa-forward-step"></i></button>
+            </div>
+            <audio id="bgmAudio" loop src=""></audio>
+        </div>
+
+        <!-- Left Sidebar (Menu) -->
+        <div class="absolute top-20 left-4 w-48 flex flex-col gap-2 pointer-events-auto">
+            <div class="glass-panel p-4 mb-4 flex flex-col items-center justify-center border-t-2 border-t-pink-400">
+                <h1 class="text-lg font-bold font-outfit text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 text-center">ST. PAULI WE</h1>
+                <p class="text-[9px] tracking-widest text-gray-400 uppercase mt-1">Utopian Experience</p>
+            </div>
+
+            <button onclick="togglePanel('pokedexPanel')" class="glass-btn w-full py-3 px-4 rounded-xl flex items-center gap-3 text-sm text-left">
+                <i class="fa-solid fa-layer-group text-cyan-400 w-5 text-center"></i> <span>Cards Deck</span>
+            </button>
+            <button onclick="togglePanel('tribunalPanel')" class="glass-btn w-full py-3 px-4 rounded-xl flex items-center gap-3 text-sm text-left">
+                <i class="fa-solid fa-scale-balanced text-pink-400 w-5 text-center"></i> <span>Tribunal Stage</span>
+            </button>
+            <button onclick="togglePanel('repoPanel')" class="glass-btn w-full py-3 px-4 rounded-xl flex items-center gap-3 text-sm text-left">
+                <i class="fa-brands fa-github text-purple-400 w-5 text-center"></i> <span>Databanks</span>
+            </button>
+            <button onclick="togglePanel('narrativePanel')" class="glass-btn w-full py-3 px-4 rounded-xl flex items-center gap-3 text-sm text-left">
+                <i class="fa-solid fa-comment-dots text-yellow-300 w-5 text-center"></i> <span>Narrative</span>
+            </button>
+        </div>
+
+        <!-- Right Sidebar (Actions) -->
+        <div class="absolute top-20 right-4 w-24 flex flex-col gap-3 pointer-events-auto">
+            <div class="text-[10px] text-center text-gray-400 font-outfit tracking-widest mb-1">EFFECTS</div>
+            <button onclick="triggerEffect('burst')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-2">
+                <i class="fa-solid fa-sun text-xl text-yellow-300"></i>
+                <span class="text-[8px] uppercase">Burst</span>
+            </button>
+            <button onclick="triggerEffect('tornado')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-2">
+                <i class="fa-solid fa-hurricane text-xl text-cyan-400"></i>
+                <span class="text-[8px] uppercase">Tornado</span>
+            </button>
+            <button onclick="triggerEffect('bubbles')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-2">
+                <i class="fa-solid fa-droplet text-xl text-pink-400"></i>
+                <span class="text-[8px] uppercase">Bubbles</span>
+            </button>
+        </div>
+
+        <!-- Bottom Camera Controls -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto glass-panel px-6 py-4 flex flex-col gap-4 w-96">
+            <div class="flex justify-between items-center text-xs">
+                <span class="text-gray-400">CAMERA</span>
+                <div class="flex bg-black/30 rounded-lg p-1 gap-1">
+                    <button class="px-3 py-1 rounded bg-cyan-400/20 text-cyan-400 text-[10px]">FREE</button>
+                    <button class="px-3 py-1 rounded hover:bg-white/10 text-gray-400 text-[10px]">FOLLOW</button>
+                    <button class="px-3 py-1 rounded hover:bg-white/10 text-gray-400 text-[10px]">CINEMATIC</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+                <span>ZOOM</span>
+                <input type="range" id="zoomSlider" min="20" max="150" value="75" class="flex-1">
+                <span id="zoomValue">0.75x</span>
+            </div>
+        </div>
+
+        <!-- Bottom Left: Joystick -->
+        <div id="joystick-zone" class="pointer-events-auto">
+            <div id="joystick-knob"></div>
+        </div>
+
+    </div> <!-- End Main UI Overlay -->
+
+    <!-- DRAGGABLE PANELS (All on Canvas) -->
+
+    <!-- 1. Pokedex / Card Deck Panel -->
+    <div id="pokedexPanel" class="drag-window glass-panel top-16 left-64 w-[450px] flex flex-col pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/20 rounded-t-[20px]">
+            <h3 class="font-outfit text-sm text-cyan-400"><i class="fa-solid fa-layer-group mr-2"></i>SKAT ROSTER (DRAG TO STAGE)</h3>
+            <button onclick="togglePanel('pokedexPanel')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto" id="cardGrid">
+            <!-- Cards injected via JS. Bigger images per request. -->
+        </div>
+    </div>
+
+    <!-- 2. Tribunal Stage (Phoenix Wright style Battle Stage) -->
+    <div id="tribunalPanel" class="drag-window glass-panel top-16 right-32 w-[600px] flex flex-col pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/20 rounded-t-[20px]">
+            <h3 class="font-outfit text-sm text-pink-400"><i class="fa-solid fa-scale-balanced mr-2"></i>WORLDCITIZEN TRIBUNAL</h3>
+            <button onclick="togglePanel('tribunalPanel')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-6">
+            <p class="text-xs text-gray-400 mb-4 text-center">Drag cards here to assign roles. Their scripts will adapt.</p>
+            
+            <!-- Court Layout -->
+            <div class="relative w-full h-[300px] bg-black/30 rounded-xl border border-white/10 overflow-hidden">
+                <!-- Judge (Top Center) -->
+                <div class="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-36 dropzone rounded-lg flex flex-col items-center justify-center p-2" 
+                     data-role="Judge" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Judge')">
+                    <span class="text-[10px] text-pink-400 font-bold mb-1">JUDGE (RICHTER)</span>
+                    <div class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-2xl"><i class="fa-solid fa-gavel"></i></div>
+                </div>
+
+                <!-- Witness (Left) -->
+                <div class="absolute top-1/2 -translate-y-1/2 left-4 w-28 h-36 dropzone rounded-lg flex flex-col items-center justify-center p-2" 
+                     data-role="Witness" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Witness')">
+                    <span class="text-[10px] text-cyan-400 font-bold mb-1">WITNESS (ZEUGE)</span>
+                    <div class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-2xl"><i class="fa-solid fa-eye"></i></div>
+                </div>
+
+                <!-- Perpetrator (Right) -->
+                <div class="absolute top-1/2 -translate-y-1/2 right-4 w-28 h-36 dropzone rounded-lg flex flex-col items-center justify-center p-2" 
+                     data-role="Perpetrator" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Perpetrator')">
+                    <span class="text-[10px] text-red-400 font-bold mb-1">DEFENDANT (TÄTER)</span>
+                    <div class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-2xl"><i class="fa-solid fa-user-slash"></i></div>
+                </div>
+
+                <!-- Jury (Bottom Center) -->
+                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-48 h-24 dropzone rounded-lg flex flex-col items-center justify-center p-2" 
+                     data-role="Jury" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Jury')">
+                    <span class="text-[10px] text-purple-400 font-bold mb-1">JURY (GESCHWORENE)</span>
+                    <div class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-2xl"><i class="fa-solid fa-users"></i></div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-3 bg-white/5 rounded border border-white/10 min-h-[60px]">
+                <span class="text-[10px] text-gray-400 block mb-1">TRIBUNAL LOG:</span>
+                <div id="tribunalLog" class="text-xs text-white">Court is in recess. Place actors to begin proceedings.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Narrative Controller (Audio/Script Toggle) -->
+    <div id="narrativePanel" class="drag-window glass-panel bottom-32 right-1/4 w-[400px] flex flex-col pointer-events-auto">
+        <div class="drag-header p-2 border-b border-white/10 flex justify-between items-center bg-black/20 rounded-t-[20px]">
+            <h3 class="font-outfit text-sm text-yellow-300 ml-2"><i class="fa-solid fa-wave-square mr-2"></i>ACTIVE COM-LINK</h3>
+            <div class="flex gap-2">
+                <!-- Audio Toggle for Scripts -->
+                <button onclick="toggleVoiceAudio()" id="voiceToggleBtn" class="text-xs px-2 py-1 bg-white/10 rounded hover:bg-yellow-300/20 text-gray-400 transition" title="Toggle Character Audio">
+                    <i class="fa-solid fa-volume-xmark"></i> VOICE OFF
+                </button>
+            </div>
+        </div>
+        <div class="p-4 flex gap-4" id="narrativeDropzone" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleNarratorDrop(event)">
+            <div class="w-20 h-24 rounded-lg overflow-hidden border-2 border-dashed border-gray-500 relative shrink-0">
+                <img id="activeNarratorImg" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop" class="w-full h-full object-cover">
+            </div>
+            <div class="flex-1 flex flex-col">
+                <div class="flex justify-between">
+                    <span id="activeNarratorName" class="text-sm font-bold text-yellow-300">SYSTEM AI</span>
+                    <span id="activeNarratorRole" class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-gray-300">OBSERVER</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-200 h-16 overflow-y-auto" id="activeNarratorScript">
+                    Drop a character here or assign them in the Tribunal to hear their script.
+                </div>
+                <button onclick="readCurrentScript()" class="mt-2 text-[10px] w-full py-1.5 bg-yellow-300/20 text-yellow-300 rounded border border-yellow-300/50 hover:bg-yellow-300 hover:text-black transition font-bold">
+                    <i class="fa-solid fa-play mr-1"></i> PLAY SCRIPT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Databank / GitHub Explorer -->
+    <div id="repoPanel" class="drag-window glass-panel top-32 left-1/2 -translate-x-1/2 w-[500px] flex flex-col pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/20 rounded-t-[20px]">
+            <h3 class="font-outfit text-sm text-purple-400"><i class="fa-brands fa-github mr-2"></i>DATABANK: WORLDPEACEBTN</h3>
+            <div class="flex gap-2">
+                <button onclick="fetchGitHubRepos()" class="text-xs px-2 py-1 bg-white/10 rounded hover:bg-purple-400/20 text-white transition"><i class="fa-solid fa-rotate-right"></i> FETCH</button>
+                <button onclick="togglePanel('repoPanel')" class="text-gray-400 hover:text-white ml-2"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="p-4">
+            <div class="flex gap-2 mb-3">
+                <input type="text" placeholder="Or insert Linklist URL..." class="flex-1 bg-black/40 border border-white/20 rounded p-2 text-xs text-white outline-none focus:border-purple-400">
+                <button class="bg-purple-500/30 text-purple-300 px-3 py-1 rounded text-xs border border-purple-500/50 hover:bg-purple-500 hover:text-white transition"><i class="fa-solid fa-upload"></i> INJECT</button>
+            </div>
+            <div id="repoListContainer" class="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-2">
+                <div class="text-center text-xs text-gray-500 py-4">Click FETCH to sync GitHub repositories...</div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // State Management
+        const STATE = {
+            panels: {
+                pokedexPanel: false, tribunalPanel: false, 
+                repoPanel: false, narrativePanel: true
+            },
+            joystick: { active: false, dx: 0, dy: 0 },
+            camera: { zoom: 75, vx: 0, vy: 0, vz: 0 }, // Explorer mode physics
+            audio: { bgmPlaying: false, voiceEnabled: false },
+            activeScriptText: "Drop a character here or assign them in the Tribunal to hear their script."
+        };
+
+        // Character Data (Expanded for Tribunal roles)
+        const CARDS = [
+            {
+                id: 'c_valerie', name: 'Queen V4lerie', type: 'Q♠',
+                img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80',
+                color: 'text-purple-400', border: 'border-purple-400',
+                scripts: {
+                    default: "The mesh is my domain. What do you seek in the depths?",
+                    Judge: "Order in the virtual court. I see all packets, hiding data is futile.",
+                    Witness: "I saw the anomaly ping from sector 4. It bypassed standard encryption.",
+                    Perpetrator: "You think your rules apply to me? I am the firewall."
+                }
+            },
+            {
+                id: 'c_kaelen', name: 'King Kaelen', type: 'K♦',
+                img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
+                color: 'text-cyan-400', border: 'border-cyan-400',
+                scripts: {
+                    default: "Securing perimeter. Hostile subroutines detected.",
+                    Judge: "By the laws of the genesis block, I will evaluate this dispute.",
+                    Witness: "The logs clearly show a breach at 0400 hours.",
+                    Perpetrator: "It was a stress test! The system needed to evolve!"
+                }
+            },
+            {
+                id: 'c_lyra', name: 'Ace Lyra', type: 'A♣',
+                img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&q=80',
+                color: 'text-pink-400', border: 'border-pink-400',
+                scripts: {
+                    default: "Speed is everything. Catch me if your bandwidth allows.",
+                    Judge: "Let's make this quick. Guilty or not? Compile your defense.",
+                    Witness: "I was overriding a proxy when I caught the data siphon.",
+                    Perpetrator: "I just borrowed the processing power. Nobody was hurt!"
+                }
+            },
+            {
+                id: 'c_corvus', name: 'Jack Corvus', type: 'J♥',
+                img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80',
+                color: 'text-yellow-300', border: 'border-yellow-300',
+                scripts: {
+                    default: "Scanning the horizon. The truth is out there, floating.",
+                    Judge: "The aerial view gives me objective clarity. Proceed.",
+                    Witness: "From above, the drop point was obvious. They met at the node.",
+                    Perpetrator: "I fly too high for your jurisdiction to matter."
+                }
+            }
+        ];
+
+        // --- AUDIO & SPEECH SYNTHESIS ---
+        let speechSynth = window.speechSynthesis;
+        let voiceObj = null;
+
+        function toggleVoiceAudio() {
+            STATE.audio.voiceEnabled = !STATE.audio.voiceEnabled;
+            const btn = document.getElementById('voiceToggleBtn');
+            if(STATE.audio.voiceEnabled) {
+                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> VOICE ON';
+                btn.classList.replace('text-gray-400', 'text-yellow-300');
+                // Attempt to load voices
+                if(speechSynth.getVoices().length > 0) {
+                    voiceObj = speechSynth.getVoices().find(v => v.lang.includes('en') && v.name.includes('Female')) || speechSynth.getVoices()[0];
+                }
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> VOICE OFF';
+                btn.classList.replace('text-yellow-300', 'text-gray-400');
+                speechSynth.cancel();
+            }
+        }
+
+        function readCurrentScript() {
+            if(!STATE.audio.voiceEnabled) {
+                // Flash button red to indicate it's off
+                const btn = document.getElementById('voiceToggleBtn');
+                btn.classList.add('bg-red-500/50');
+                setTimeout(() => btn.classList.remove('bg-red-500/50'), 500);
+                return;
+            }
+            speechSynth.cancel(); // Stop current speech
+            if(STATE.activeScriptText) {
+                const utterance = new SpeechSynthesisUtterance(STATE.activeScriptText);
+                if(voiceObj) utterance.voice = voiceObj;
+                utterance.pitch = 1.1; // Cyberish feel
+                utterance.rate = 1.05;
+                speechSynth.speak(utterance);
+            }
+        }
+
+        // Mock EQ visualizer (Audio API is complex for a mock without a real file)
+        function initEQ() {
+            const eq = document.getElementById('eqVisualizer');
+            eq.innerHTML = '';
+            for(let i=0; i<32; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'flex-1 bg-cyan-400 rounded-t opacity-50 transition-all duration-75';
+                bar.style.height = '10%';
+                eq.appendChild(bar);
+            }
+        }
+        
+        setInterval(() => {
+            if(!STATE.audio.bgmPlaying) return;
+            const bars = document.getElementById('eqVisualizer').children;
+            for(let i=0; i<bars.length; i++) {
+                bars[i].style.height = `${Math.random() * 80 + 20}%`;
+                bars[i].style.backgroundColor = Math.random() > 0.8 ? '#f06292' : '#4dd0e1';
+            }
+        }, 100);
+
+        function toggleGlobalAudio() {
+            STATE.audio.bgmPlaying = !STATE.audio.bgmPlaying;
+            const btn = document.getElementById('mainPlayBtn');
+            if(STATE.audio.bgmPlaying) {
+                btn.className = "fa-solid fa-pause";
+                btn.parentElement.classList.add('bg-cyan-400/20', 'text-cyan-400');
+            } else {
+                btn.className = "fa-solid fa-play";
+                btn.parentElement.classList.remove('bg-cyan-400/20', 'text-cyan-400');
+                const bars = document.getElementById('eqVisualizer').children;
+                for(let i=0; i<bars.length; i++) bars[i].style.height = '10%';
+            }
+        }
+
+
+        function renderPokedex() {
+            const grid = document.getElementById('cardGrid');
+            grid.innerHTML = CARDS.map(c => `
+                <div class="glass-panel p-2 rounded-xl border ${c.border} flex flex-col cursor-grab active:cursor-grabbing hover:scale-105 transition transform"
+                     draggable="true" ondragstart="startDrag(event, '${c.id}')">
+                    <img src="${c.img}" class="w-full h-32 object-cover rounded-lg border-2 border-transparent">
+                    <div class="mt-2 text-center">
+                        <div class="text-sm font-bold ${c.color}">${c.name}</div>
+                        <div class="text-[10px] bg-white/10 inline-block px-2 rounded mt-1">${c.type}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Drag and Drop Logic
+        function startDrag(e, cardId) {
+            e.dataTransfer.setData('text/plain', cardId);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+            if(e.currentTarget.classList.contains('dropzone')) {
+                e.currentTarget.classList.add('active');
+            }
+        }
+
+        function leaveDrop(e) {
+            if(e.currentTarget.classList.contains('dropzone')) {
+                e.currentTarget.classList.remove('active');
+            }
+        }
+
+        function handleRoleDrop(e, role) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('active');
+            const cardId = e.dataTransfer.getData('text/plain');
+            const card = CARDS.find(c => c.id === cardId);
+            if(!card) return;
+
+            // Update visuals in the slot
+            const contentDiv = e.currentTarget.querySelector('.slot-content');
+            contentDiv.innerHTML = `<img src="${card.img}" class="w-full h-full object-cover rounded-md border-2 ${card.border}">`;
+
+            // Update script based on role
+            const script = card.scripts[role] || card.scripts.default;
+            updateNarratorFocus(card, role, script);
+            
+            // Log entry
+            const log = document.getElementById('tribunalLog');
+            log.innerHTML = `<span class="${card.color}">${card.name}</span> took the stand as <span class="text-white font-bold">${role}</span>.<br>${log.innerHTML}`;
+        }
+
+        function handleNarratorDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('active');
+            const cardId = e.dataTransfer.getData('text/plain');
+            const card = CARDS.find(c => c.id === cardId);
+            if(card) updateNarratorFocus(card, 'Default', card.scripts.default);
+        }
+
+        function updateNarratorFocus(card, role, script) {
+            document.getElementById('activeNarratorImg').src = card.img;
+            document.getElementById('activeNarratorName').innerText = card.name.toUpperCase();
+            document.getElementById('activeNarratorName').className = `text-sm font-bold ${card.color}`;
+            document.getElementById('activeNarratorRole').innerText = role.toUpperCase();
+            
+            STATE.activeScriptText = script;
+            
+            // Typewriter effect
+            const scriptEl = document.getElementById('activeNarratorScript');
+            scriptEl.innerHTML = '';
+            let i = 0;
+            const timer = setInterval(() => {
+                if(i < script.length) {
+                    scriptEl.innerHTML += script.charAt(i);
+                    i++;
+                } else clearInterval(timer);
+            }, 30);
+            
+            // Auto play voice if enabled
+            if(STATE.audio.voiceEnabled) {
+                setTimeout(readCurrentScript, 500); // slight delay
+            }
+        }
+
+        // Draggable Window Logic
+        function makeWindowsDraggable() {
+            document.querySelectorAll('.drag-window').forEach(win => {
+                const header = win.querySelector('.drag-header');
+                if(!header) return;
+                
+                let isDragging = false, startX, startY, initX, initY;
+
+                const dragStart = (e) => {
+                    if(e.target.tagName === 'BUTTON' || e.target.tagName === 'I') return;
+                    isDragging = true;
+                    startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                    startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                    const rect = win.getBoundingClientRect();
+                    initX = rect.left; initY = rect.top;
+                    
+                    // Bring to front
+                    document.querySelectorAll('.drag-window').forEach(w => w.style.zIndex = '40');
+                    win.style.zIndex = '50';
+                };
+
+                const dragMove = (e) => {
+                    if(!isDragging) return;
+                    e.preventDefault();
+                    const x = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                    const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                    
+                    win.style.left = `${initX + (x - startX)}px`;
+                    win.style.top = `${initY + (y - startY)}px`;
+                    win.style.right = 'auto'; win.style.bottom = 'auto'; win.style.transform = 'none';
+                };
+
+                const dragEnd = () => isDragging = false;
+
+                header.addEventListener('mousedown', dragStart);
+                window.addEventListener('mousemove', dragMove);
+                window.addEventListener('mouseup', dragEnd);
+                
+                header.addEventListener('touchstart', dragStart, {passive: false});
+                window.addEventListener('touchmove', dragMove, {passive: false});
+                window.addEventListener('touchend', dragEnd);
+            });
+        }
+
+        function togglePanel(id) {
+            const p = document.getElementById(id);
+            STATE.panels[id] = !STATE.panels[id];
+            if(STATE.panels[id]) {
+                p.classList.remove('hidden');
+            } else {
+                p.classList.add('hidden');
+            }
+        }
+
+
+        async function fetchGitHubRepos() {
+            const container = document.getElementById('repoListContainer');
+            container.innerHTML = '<div class="text-center text-xs text-cyan-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching from neural net...</div>';
+            
+            try {
+                // Fetch public repos for user worldpeacebtn
+                const res = await fetch('https://api.github.com/users/worldpeacebtn/repos');
+                if(!res.ok) throw new Error('API Rate limit or user not found');
+                const data = await res.json();
+                
+                if(data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-xs text-gray-500 py-4">No repositories found.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(repo => `
+                    <div class="glass-panel p-3 border-purple-500/30 flex flex-col gap-1 hover:bg-purple-500/10 transition">
+                        <div class="flex justify-between items-start">
+                            <a href="${repo.html_url}" target="_blank" class="text-sm text-purple-300 font-bold hover:underline">
+                                <i class="fa-solid fa-book-bookmark mr-1"></i>${repo.name}
+                            </a>
+                            <span class="text-[10px] bg-white/10 px-1 rounded text-gray-400"><i class="fa-solid fa-star text-yellow-500 mr-1"></i>${repo.stargazers_count}</span>
+                        </div>
+                        <p class="text-[10px] text-gray-400 truncate">${repo.description || 'No description provided.'}</p>
+                        <div class="flex gap-2 text-[9px] text-gray-500 mt-1">
+                            <span>${repo.language || 'Unknown'}</span>
+                            <span>Updated: ${new Date(repo.updated_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (e) {
+                container.innerHTML = `<div class="text-center text-xs text-red-400 py-4"><i class="fa-solid fa-triangle-exclamation"></i> Error fetching databank.<br>${e.message}</div>`;
+            }
+        }
+
+        
+        let scene, camera, renderer, particles, centralMesh;
+        
+        function initThreeJS() {
+            const container = document.getElementById('threeJsContainer');
+            scene = new THREE.Scene();
+            
+            // Starts zoomed out by ~50% based on request (e.g. Z=15 instead of 5, high FOV)
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+            camera.position.y = 2;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // 1. Cosmic Particles (Underwater / Space vibe)
+            const particleGeo = new THREE.BufferGeometry();
+            const particleCount = 2000;
+            const posArray = new Float32Array(particleCount * 3);
+            for(let i=0; i<particleCount*3; i++) {
+                // Spread wide
+                posArray[i] = (Math.random() - 0.5) * 60;
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            
+            // Create a glowing circular texture programmatically
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(8,8,0, 8,8,8);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(77,208,225,1)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0,0,16,16);
+            const texture = new THREE.CanvasTexture(canvas);
+
+            const particleMat = new THREE.PointsMaterial({
+                size: 0.5, map: texture, transparent: true,
+                blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            particles = new THREE.Points(particleGeo, particleMat);
+            scene.add(particles);
+
+            // 2. Central Cosmic Geometry (The "Dolphin" / Nebula placeholder)
+            const torusGeo = new THREE.TorusKnotGeometry(4, 1.2, 100, 16);
+            const torusMat = new THREE.MeshBasicMaterial({ 
+                color: 0xf06292, wireframe: true, transparent: true, opacity: 0.3
+            });
+            centralMesh = new THREE.Mesh(torusGeo, torusMat);
+            scene.add(centralMesh);
+            
+            // Add a glowing core
+            const coreGeo = new THREE.SphereGeometry(3, 32, 32);
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: 0x4dd0e1, transparent: true, opacity: 0.1,
+                blending: THREE.AdditiveBlending
+            });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            centralMesh.add(core);
+
+            // Setup Zoom Slider
+            const slider = document.getElementById('zoomSlider');
+            const zoomVal = document.getElementById('zoomValue');
+            slider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                // Map slider (20-150) to FOV (20-120) for zoom effect
+                camera.fov = 170 - val; 
+                camera.updateProjectionMatrix();
+                zoomVal.innerText = (val / 100).toFixed(2) + 'x';
+            });
+            // Init zoom
+            slider.dispatchEvent(new Event('input'));
+            
+            animate();
+        }
+
+        // Explorer Mode Physics (Underwater Gravity/Friction)
+        function applyCameraPhysics() {
+            // Apply joystick input to velocity
+            if (STATE.joystick.active) {
+                // Joystick outputs dx, dy between -1 and 1
+                STATE.camera.vx += STATE.joystick.dx * 0.02; 
+                STATE.camera.vz += STATE.joystick.dy * 0.02;
+            }
+
+            // Apply velocity to position (Underwater drift)
+            camera.position.x += STATE.camera.vx;
+            camera.position.z += STATE.camera.vz;
+            
+            // Always point somewhat towards center
+            camera.lookAt(0, 0, 0);
+
+            // Apply friction (water resistance)
+            STATE.camera.vx *= 0.95;
+            STATE.camera.vz *= 0.95;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate Particles and Central Mesh
+            if (particles) {
+                particles.rotation.y += 0.0005;
+                particles.rotation.x += 0.0002;
+                
+                // Audio reactive pulse
+                if(STATE.audio.bgmPlaying) {
+                    const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 1;
+                    particles.scale.set(pulse, pulse, pulse);
+                }
+            }
+            
+            if (centralMesh) {
+                centralMesh.rotation.x += 0.001;
+                centralMesh.rotation.y += 0.002;
+                if(STATE.audio.bgmPlaying) {
+                    centralMesh.material.color.setHex(Math.random() > 0.95 ? 0x4dd0e1 : 0xf06292);
+                }
+            }
+
+            applyCameraPhysics();
+
+            renderer.render(scene, camera);
+        }
+
+        function setupJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            const maxRadius = 35; // How far knob can move
+            
+            let cx, cy;
+
+            const handleMove = (e) => {
+                if(!STATE.joystick.active) return;
+                e.preventDefault();
+                const x = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                
+                let dx = x - cx;
+                let dy = y - cy;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                
+                if (distance > maxRadius) {
+                    const ratio = maxRadius / distance;
+                    dx *= ratio;
+                    dy *= ratio;
+                }
+                
+                knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                
+                // Normalize for physics engine (-1 to 1)
+                STATE.joystick.dx = dx / maxRadius;
+                STATE.joystick.dy = dy / maxRadius;
+            };
+
+            const handleStart = (e) => {
+                STATE.joystick.active = true;
+                const rect = zone.getBoundingClientRect();
+                cx = rect.left + rect.width / 2;
+                cy = rect.top + rect.height / 2;
+                knob.style.transition = 'none'; // Instant follow
+                handleMove(e);
+                
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('touchmove', handleMove, {passive: false});
+            };
+
+            const handleEnd = () => {
+                STATE.joystick.active = false;
+                STATE.joystick.dx = 0;
+                STATE.joystick.dy = 0;
+                knob.style.transition = 'transform 0.2s ease-out';
+                knob.style.transform = `translate(-50%, -50%)`;
+                
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('touchmove', handleMove);
+            };
+
+            zone.addEventListener('mousedown', handleStart);
+            zone.addEventListener('touchstart', handleStart, {passive: false});
+            
+            document.addEventListener('mouseup', handleEnd);
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        // Effect triggers (Visuals)
+        function triggerEffect(type) {
+            if(type === 'burst' && centralMesh) {
+                centralMesh.scale.set(1.5, 1.5, 1.5);
+                setTimeout(() => centralMesh.scale.set(1,1,1), 200);
+            } else if (type === 'tornado' && particles) {
+                STATE.camera.vy = 2; // Jump effect
+            }
+        }
+
+        // Handle Resizing
+        window.addEventListener('resize', () => {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // Initialization
+        window.onload = () => {
+            initEQ();
+            renderPokedex();
+            makeWindowsDraggable();
+            setupJoystick();
+            
+            // Init WebGL Background
+            initThreeJS();
+            
+            // Pre-load a default narrator
+            const defCard = CARDS[0];
+            updateNarratorFocus(defCard, 'Default', defCard.scripts.default);
+
+            // Speech Synthesis setup
+            if(speechSynth.onvoiceschanged !== undefined) {
+                speechSynth.onvoiceschanged = () => {
+                    // pre-load voices
+                    speechSynth.getVoices();
+                };
+            }
+        };
+    </script>
+</body>
+</html>
