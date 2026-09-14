@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>St. Pauli WE - Rainbow Rabbit Cosmic HUD & Case Vault</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js 3D Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-deep: #030312;
+            --accent-pink: #f06292;
+            --accent-cyan: #4dd0e1;
+            --accent-purple: #ba68c8;
+            --accent-yellow: #ffee58;
+            --panel-bg: rgba(6, 6, 26, 0.75);
+            --panel-border: rgba(77, 208, 225, 0.4);
+            --glow-cyan: 0 0 15px rgba(77, 208, 225, 0.6);
+            --glow-pink: 0 0 15px rgba(240, 98, 146, 0.6);
+            --glow-rainbow: 0 0 20px rgba(240, 98, 146, 0.5), 0 0 30px rgba(77, 208, 225, 0.5);
+            --text-main: #f8fafc;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text-main);
+            overflow: hidden;
+            touch-action: none;
+            background-image: 
+                radial-gradient(circle at 50% 30%, rgba(240, 98, 146, 0.15) 0%, transparent 60%),
+                radial-gradient(circle at 20% 80%, rgba(77, 208, 225, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(186, 104, 200, 0.1) 0%, transparent 50%),
+                linear-gradient(to bottom, #030312 0%, #08031a 100%);
+        }
+
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+
+        /* Glassmorphism Panels with Neon Edges */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 255, 255, 0.05);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+        .glass-btn:hover, .glass-btn.active {
+            background: rgba(77, 208, 225, 0.2);
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+            color: #fff;
+        }
+
+        /* Draggable & Resizable Window System */
+        .drag-window {
+            position: absolute;
+            z-index: 40;
+            display: flex;
+            flex-direction: column;
+            min-width: 280px;
+            max-width: 95vw;
+            max-height: 85vh;
+            resize: both;
+            overflow: hidden;
+        }
+        .drag-header {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .drag-header:active { cursor: grabbing; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-pink); border-radius: 3px; }
+
+        /* Cyber Scroll / Parchment Effect */
+        .cyber-scroll {
+            background: linear-gradient(135deg, rgba(20, 15, 35, 0.95), rgba(10, 8, 20, 0.98));
+            border: 2px solid var(--accent-yellow);
+            box-shadow: 0 0 25px rgba(255, 238, 88, 0.25), inset 0 0 15px rgba(255, 238, 88, 0.1);
+            border-radius: 12px;
+        }
+
+        /* Dropzones */
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.25);
+            transition: all 0.3s;
+        }
+        .dropzone.active {
+            border-color: var(--accent-pink);
+            background: rgba(240, 98, 146, 0.15);
+            box-shadow: var(--glow-pink);
+        }
+
+        /* Joystick */
+        #joystick-zone {
+            position: absolute; left: 24px; bottom: 24px;
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            border: 2px solid rgba(77, 208, 225, 0.4);
+            background: radial-gradient(circle, rgba(77, 208, 225, 0.15) 0%, transparent 70%);
+            touch-action: none;
+            z-index: 35;
+        }
+        #joystick-knob {
+            position: absolute; top: 50%; left: 50%;
+            width: 42px; height: 42px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: var(--glow-cyan);
+            pointer-events: none;
+            transition: transform 0.08s ease-out;
+        }
+
+        .neon-title {
+            text-shadow: 0 0 10px rgba(240, 98, 146, 0.8), 0 0 20px rgba(77, 208, 225, 0.6), 0 0 30px rgba(186, 104, 200, 0.4);
+        }
+
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 14px; width: 14px;
+            border-radius: 50%; background: var(--accent-pink);
+            cursor: pointer; box-shadow: var(--glow-pink);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer;
+            background: rgba(255,255,255,0.2); border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="h-full w-full relative overflow-hidden select-none">
+
+    <div id="threeJsContainer" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="absolute inset-0 z-10 pointer-events-none">
+        
+        <!-- Top Status & Mode Bar -->
+        <div class="absolute top-3 left-4 right-4 flex justify-between items-center pointer-events-auto text-[10px] md:text-xs font-outfit text-cyan-300">
+            <div class="glass-panel px-3 py-1.5 flex items-center gap-2 border-cyan-400/40">
+                <i class="fa-solid fa-tower-broadcast text-pink-400 animate-pulse"></i>
+                <span class="tracking-wider">ST. PAULI WE : REALITY MIX</span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="toggleAppMode()" id="modeToggleBtn" class="glass-panel px-3 py-1.5 flex items-center gap-1.5 text-yellow-300 border-yellow-300/50 hover:bg-yellow-300/20 font-bold transition">
+                    <i class="fa-solid fa-gamepad"></i> <span id="modeToggleText">EXPLORER (GAMER) MODE</span>
+                </button>
+                <button onclick="togglePanel('introSceneModal')" class="glass-panel px-3 py-1.5 flex items-center gap-1.5 text-pink-400 border-pink-400/50 hover:bg-pink-400/20 transition">
+                    <i class="fa-solid fa-circle-question"></i> <span>STORY BRIEF</span>
+                </button>
+            </div>
+
+            <div class="hidden md:flex glass-panel px-3 py-1.5 items-center gap-2 border-purple-400/40">
+                <span class="text-purple-300">STAGE: <span id="currentStageLabel" class="text-white font-bold">MASHED CUBIC-SPHERE</span></span>
+            </div>
+        </div>
+
+        <!-- Top Center Media Player & Audio Visualizer -->
+        <div class="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center glass-panel px-4 py-2 gap-4 max-w-[92vw]">
+            <div class="flex flex-col">
+                <span class="text-[9px] text-pink-400 font-outfit tracking-widest uppercase">AUDIO STREAM.WAV</span>
+                <span id="currentTrackName" class="text-xs font-bold text-white truncate max-w-[120px] md:max-w-[200px]">Rainbow Rabbit Anthem</span>
+            </div>
+            
+            <div class="hidden sm:flex flex-1 w-32 md:w-44 h-6 items-center gap-[2px]" id="eqVisualizer"></div>
+
+            <div class="flex items-center gap-3 text-gray-300">
+                <button onclick="toggleGlobalAudio()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-cyan-400/20 hover:text-cyan-400 border border-white/20 transition shadow-[0_0_10px_rgba(255,255,255,0.1)]">
+                    <i id="mainPlayBtn" class="fa-solid fa-play text-xs"></i>
+                </button>
+            </div>
+            <audio id="bgmAudio" loop src=""></audio>
+        </div>
+
+        <!-- Left Sidebar Menu -->
+        <div class="absolute top-32 left-3 md:left-4 w-44 md:w-52 flex flex-col gap-2 pointer-events-auto">
+            <div class="glass-panel p-3 mb-1 flex flex-col items-center justify-center border-t-2 border-t-pink-400">
+                <h1 class="text-sm md:text-base font-extrabold font-outfit text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-cyan-400 to-purple-400 text-center neon-title">ST. PAULI WE</h1>
+                <p class="text-[8px] tracking-widest text-gray-400 uppercase mt-0.5">Cosmic Case Vault</p>
+            </div>
+
+            <button onclick="togglePanel('pokedexPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-users text-cyan-400 w-4 text-center"></i> <span>JRPG Characters</span>
+            </button>
+            <button onclick="togglePanel('charEditorPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-user-pen text-pink-400 w-4 text-center"></i> <span>Character Editor</span>
+            </button>
+            <button onclick="togglePanel('evidenceVaultPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-folder-open text-yellow-300 w-4 text-center"></i> <span>Case Vault (Media)</span>
+            </button>
+            <button onclick="togglePanel('starmapPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-earth-europe text-emerald-400 w-4 text-center"></i> <span>Star Grid / Episodes</span>
+            </button>
+            <button onclick="togglePanel('scrollPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-scroll text-yellow-300 w-4 text-center"></i> <span>Cyber-Scroll Viewer</span>
+            </button>
+            <button onclick="togglePanel('tribunalPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-solid fa-scale-balanced text-purple-400 w-4 text-center"></i> <span>Tribunal Stage</span>
+            </button>
+            <button onclick="togglePanel('repoPanel')" class="glass-btn w-full py-2 px-3 rounded-xl flex items-center gap-2 text-xs text-left">
+                <i class="fa-brands fa-github text-cyan-300 w-4 text-center"></i> <span>GitHub & TikTok Hub</span>
+            </button>
+            <button onclick="exportStateJSON()" class="glass-btn w-full py-1.5 px-3 rounded-xl flex items-center gap-2 text-[11px] text-emerald-400 border-emerald-400/40">
+                <i class="fa-solid fa-download w-4 text-center"></i> <span>Export Vault JSON</span>
+            </button>
+        </div>
+
+        <!-- Right Sidebar Action Buttons -->
+        <div class="absolute top-32 right-3 md:right-4 w-16 md:w-20 flex flex-col gap-2.5 pointer-events-auto">
+            <div class="text-[9px] text-center text-gray-400 font-outfit tracking-widest mb-0.5">STAGE</div>
+            <button onclick="switchStageMode('meshed')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-1.5 p-2 active">
+                <i class="fa-solid fa-cube text-base text-cyan-400"></i>
+                <span class="text-[7px] uppercase">Mesh</span>
+            </button>
+            <button onclick="switchStageMode('cubic')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-1.5 p-2">
+                <i class="fa-solid fa-box text-base text-pink-400"></i>
+                <span class="text-[7px] uppercase">Cubic</span>
+            </button>
+            <button onclick="switchStageMode('spheric')" class="glass-btn aspect-square rounded-2xl flex flex-col items-center justify-center gap-1.5 p-2">
+                <i class="fa-solid fa-globe text-base text-yellow-300"></i>
+                <span class="text-[7px] uppercase">Sphere</span>
+            </button>
+        </div>
+
+        <!-- Bottom Camera Zoom Bar -->
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto glass-panel px-4 py-2 flex flex-col gap-1.5 w-80 md:w-96 max-w-[90vw]">
+            <div class="flex justify-between items-center text-[10px]">
+                <span class="text-gray-400 font-outfit">CAMERA ZOOM</span>
+                <span id="zoomValue" class="text-cyan-300 font-bold">0.75x</span>
+            </div>
+            <input type="range" id="zoomSlider" min="20" max="150" value="75" class="w-full">
+        </div>
+
+        <!-- Bottom Left Joystick -->
+        <div id="joystick-zone" class="pointer-events-auto">
+            <div id="joystick-knob"></div>
+        </div>
+
+    </div> <!-- End UI Overlay -->
+
+
+    <!-- 1. JRPG Characters Roster Panel -->
+    <div id="pokedexPanel" class="drag-window glass-panel top-28 left-56 w-[460px] max-w-[90vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-cyan-400 font-bold"><i class="fa-solid fa-users mr-2"></i>JRPG CHARACTER ROSTER & STATS</h3>
+            <button onclick="togglePanel('pokedexPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 grid grid-cols-2 gap-3 max-h-[58vh] overflow-y-auto" id="cardGrid"></div>
+        <div class="p-2 border-t border-white/10 bg-black/20 text-[10px] text-center text-gray-400">
+            Drag cards into Tribunal Stage roles or click to inspect stats.
+        </div>
+    </div>
+
+    <!-- 2. JRPG Character Editor Panel -->
+    <div id="charEditorPanel" class="drag-window glass-panel top-32 left-60 w-[480px] max-w-[90vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-pink-400 font-bold"><i class="fa-solid fa-user-pen mr-2"></i>JRPG CHARACTER EDITOR & MEDIA UPLOAD</h3>
+            <button onclick="togglePanel('charEditorPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+            <div class="flex gap-2">
+                <select id="editCharSelect" onchange="loadCharIntoEditor()" class="flex-1 bg-black/40 border border-white/20 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-pink-400">
+                    <!-- Options injected via JS -->
+                </select>
+                <button onclick="createNewCharacter()" class="bg-pink-500/30 text-pink-300 px-3 py-1.5 rounded text-xs border border-pink-500/50 hover:bg-pink-500 hover:text-white transition"><i class="fa-solid fa-plus"></i> NEW</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[9px] text-gray-400">Character Name</label>
+                    <input type="text" id="ecName" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-400">Clan / Faction</label>
+                    <input type="text" id="ecClan" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[9px] text-gray-400">Card / Suit Type</label>
+                    <input type="text" id="ecType" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-400">Color Theme (Tailwind)</label>
+                    <input type="text" id="ecColor" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5" placeholder="text-pink-400">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[9px] text-gray-400">Avatar / Media URL (PNG, Transparent, GIF, MP4, etc.)</label>
+                <input type="text" id="ecImg" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5">
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="text-[9px] text-gray-400">HP / Vitality</label>
+                    <input type="number" id="ecHp" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5" value="100">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-400">Agility</label>
+                    <input type="number" id="ecAgi" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5" value="85">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-400">Cyber Affinity</label>
+                    <input type="number" id="ecCyb" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5" value="92">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[9px] text-gray-400">Justice Role Description</label>
+                <input type="text" id="ecRole" class="w-full bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-cyan-400 mt-0.5">
+            </div>
+
+            <div class="flex gap-2 mt-2">
+                <button onclick="saveCharacterEdits()" class="flex-1 py-2 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/40 hover:bg-cyan-500 hover:text-black font-bold transition text-xs">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> SAVE CHARACTER
+                </button>
+                <button onclick="deleteCurrentCharacter()" class="px-3 py-2 bg-red-500/20 text-red-300 rounded border border-red-500/40 hover:bg-red-500 hover:text-white transition text-xs">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Case Vault (Universal Media Grid Preview) -->
+    <div id="evidenceVaultPanel" class="drag-window glass-panel top-24 left-64 w-[540px] max-w-[92vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-yellow-300 font-bold"><i class="fa-solid fa-folder-open mr-2"></i>CASE VAULT & UNIVERSAL MEDIA GRID</h3>
+            <button onclick="togglePanel('evidenceVaultPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 flex flex-col gap-3 max-h-[62vh] overflow-y-auto">
+            <div class="flex gap-2">
+                <input type="text" id="newMediaUrl" placeholder="Paste URL (.mp4, .m4v, .glb, .pdf, .html, .png, .gif)..." class="flex-1 bg-black/40 border border-white/20 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-yellow-300">
+                <select id="newMediaType" class="bg-black/40 border border-white/20 rounded px-2 py-1.5 text-xs text-yellow-300 outline-none">
+                    <option value="image">Image/PNG</option>
+                    <option value="video">Video (MP4/M4V)</option>
+                    <option value="glb">3D Model (GLB)</option>
+                    <option value="pdf">PDF Document</option>
+                    <option value="html">HTML / Webpage</option>
+                    <option value="gif">GIF Animation</option>
+                </select>
+                <button onclick="addEvidenceItem()" class="bg-yellow-400/30 text-yellow-300 px-3 py-1.5 rounded text-xs border border-yellow-400/50 hover:bg-yellow-400 hover:text-black transition font-bold"><i class="fa-solid fa-plus"></i> ADD</button>
+            </div>
+
+            <!-- Mini Button Grid Preview Style -->
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5" id="evidenceGridContainer"></div>
+        </div>
+        <div class="p-2.5 border-t border-white/10 bg-black/20 text-[10px] text-center text-gray-400">
+            Click any evidence tile to inspect in 3D Stage or open in Cyber-Scroll viewer.
+        </div>
+    </div>
+
+    <!-- 4. Cyber-Scroll Viewer Panel -->
+    <div id="scrollPanel" class="drag-window cyber-scroll top-32 left-72 w-[520px] max-w-[92vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-yellow-300/30 flex justify-between items-center bg-black/40 rounded-t-[10px]">
+            <h3 class="font-outfit text-xs md:text-sm text-yellow-300 font-bold"><i class="fa-solid fa-scroll mr-2"></i>CYBER-SCROLL ARCHIVE</h3>
+            <button onclick="togglePanel('scrollPanel')" class="text-yellow-300/60 hover:text-yellow-300 px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 max-h-[60vh] overflow-y-auto text-xs text-yellow-100/90 leading-relaxed font-outfit" id="scrollContentBody">
+            <h2 class="text-base font-bold text-yellow-300 mb-2 uppercase tracking-widest">The Rainbow Rabbit Manifesto</h2>
+            <p class="mb-3">Welcome, Worldcitizen. You have unlocked the ancient scroll of St. Pauli. Here, reality and pen-and-paper roleplay intertwine across digital nodes, video feeds, 3D glb models, and decentralized archives.</p>
+            <div id="scrollDynamicPreview" class="my-4 p-3 bg-black/60 rounded border border-yellow-300/40 text-center">
+                <span class="text-gray-400 text-[11px]">Select an evidence item from the Case Vault to render inside this cyber-scroll viewer.</span>
+            </div>
+            <p class="text-[11px] text-yellow-300/80">Scroll seamlessly through documents, HTML scripts, and media streams.</p>
+        </div>
+    </div>
+
+    <!-- 5. Star Grid / Episode Vaults Panel -->
+    <div id="starmapPanel" class="drag-window glass-panel top-24 left-60 w-[540px] max-w-[92vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-emerald-400 font-bold"><i class="fa-solid fa-earth-europe mr-2"></i>STAR GRID & EPISODE VAULTS (REALITY & IRL MIX)</h3>
+            <button onclick="togglePanel('starmapPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4">
+            <p class="text-[10px] text-gray-400 mb-3 text-center">Click any resistance sector below to broadcast episode lore and replay evidence.</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[55vh] overflow-y-auto pr-1" id="starMapGrid"></div>
+        </div>
+    </div>
+
+    <!-- 6. Tribunal Stage -->
+    <div id="tribunalPanel" class="drag-window glass-panel top-28 right-24 w-[560px] max-w-[92vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-purple-400 font-bold"><i class="fa-solid fa-scale-balanced mr-2"></i>WORLDCITIZEN TRIBUNAL STAGE</h3>
+            <button onclick="togglePanel('tribunalPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 md:p-5">
+            <p class="text-[11px] text-gray-400 mb-3 text-center">Drag cards here or click slots to swap characters. Trigger objections!</p>
+            
+            <div class="relative w-full h-[290px] bg-black/40 rounded-xl border border-white/10 overflow-hidden">
+                <!-- Judge -->
+                <div class="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-32 md:w-28 md:h-36 dropzone rounded-lg flex flex-col items-center justify-center p-1.5 cursor-pointer" 
+                     data-role="Judge" onclick="openRoleSelector('Judge')" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Judge')">
+                    <span class="text-[9px] text-pink-400 font-bold mb-1">JUDGE (TAP TO SWAP)</span>
+                    <div id="slot-Judge" class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-xl"><i class="fa-solid fa-gavel"></i></div>
+                </div>
+
+                <!-- Witness -->
+                <div class="absolute top-1/2 -translate-y-1/2 left-3 w-24 h-32 md:w-28 md:h-36 dropzone rounded-lg flex flex-col items-center justify-center p-1.5 cursor-pointer" 
+                     data-role="Witness" onclick="openRoleSelector('Witness')" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Witness')">
+                    <span class="text-[9px] text-cyan-400 font-bold mb-1">WITNESS</span>
+                    <div id="slot-Witness" class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-xl"><i class="fa-solid fa-eye"></i></div>
+                </div>
+
+                <!-- Defendant -->
+                <div class="absolute top-1/2 -translate-y-1/2 right-3 w-24 h-32 md:w-28 md:h-36 dropzone rounded-lg flex flex-col items-center justify-center p-1.5 cursor-pointer" 
+                     data-role="Perpetrator" onclick="openRoleSelector('Perpetrator')" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Perpetrator')">
+                    <span class="text-[9px] text-red-400 font-bold mb-1">DEFENDANT</span>
+                    <div id="slot-Perpetrator" class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-xl"><i class="fa-solid fa-user-slash"></i></div>
+                </div>
+
+                <!-- Jury -->
+                <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-48 h-20 dropzone rounded-lg flex flex-col items-center justify-center p-1.5 cursor-pointer" 
+                     data-role="Jury" onclick="openRoleSelector('Jury')" ondragover="allowDrop(event)" ondragleave="leaveDrop(event)" ondrop="handleRoleDrop(event, 'Jury')">
+                    <span class="text-[9px] text-purple-400 font-bold mb-0.5">JURY PACK</span>
+                    <div id="slot-Jury" class="slot-content w-full h-full flex items-center justify-center text-gray-600 text-lg"><i class="fa-solid fa-users"></i></div>
+                </div>
+            </div>
+
+            <!-- Phoenix Wright Shouts -->
+            <div class="flex gap-2 mt-3">
+                <button onclick="triggerObjection('OBJECTION!')" class="flex-1 py-1.5 bg-red-500/30 text-red-300 rounded font-bold border border-red-500/50 hover:bg-red-500 hover:text-white transition text-xs">
+                    <i class="fa-solid fa-bolt mr-1"></i> OBJECTION!
+                </button>
+                <button onclick="triggerObjection('HOLD IT!')" class="flex-1 py-1.5 bg-yellow-500/30 text-yellow-300 rounded font-bold border border-yellow-500/50 hover:bg-yellow-500 hover:text-black transition text-xs">
+                    <i class="fa-solid fa-hand mr-1"></i> HOLD IT!
+                </button>
+                <button onclick="triggerObjection('TAKE THAT!')" class="flex-1 py-1.5 bg-cyan-500/30 text-cyan-300 rounded font-bold border border-cyan-500/50 hover:bg-cyan-500 hover:text-black transition text-xs">
+                    <i class="fa-solid fa-star mr-1"></i> TAKE THAT!
+                </button>
+            </div>
+            
+            <div class="mt-2.5 p-2.5 bg-white/5 rounded border border-white/10 min-h-[45px]">
+                <div id="tribunalLog" class="text-xs text-white">Court is in session. Tap any role slot to swap characters or drag cards from roster.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. GitHub / TikTok Hub Panel -->
+    <div id="repoPanel" class="drag-window glass-panel top-32 left-1/3 w-[500px] max-w-[92vw] pointer-events-auto hidden">
+        <div class="drag-header p-3 border-b border-white/10 flex justify-between items-center bg-black/30 rounded-t-[16px]">
+            <h3 class="font-outfit text-xs md:text-sm text-purple-400 font-bold"><i class="fa-brands fa-github mr-2"></i>DATABANK: GITHUB & TIKTOK HUD</h3>
+            <button onclick="togglePanel('repoPanel')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+            <div class="flex gap-2 border-b border-white/10 pb-2">
+                <button onclick="switchDatabankTab('github')" id="tabBtnGithub" class="flex-1 py-1 px-2 rounded bg-purple-500/30 text-purple-300 text-xs font-bold transition">GitHub & HTML Links</button>
+                <button onclick="switchDatabankTab('tiktok')" id="tabBtnTiktok" class="flex-1 py-1 px-2 rounded bg-white/5 text-gray-400 text-xs font-bold transition">TikTok Feeds</button>
+            </div>
+
+            <!-- GitHub Content -->
+            <div id="databankGithubContent" class="flex flex-col gap-2.5">
+                <div class="flex gap-2 items-center">
+                    <input type="text" id="githubUserInput" value="worldpeacebtn" placeholder="GitHub Username (e.g. worldpeacebtn)" class="flex-1 bg-black/40 border border-white/20 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-purple-400">
+                    <button onclick="fetchGitHubRepos()" class="bg-purple-500/30 text-purple-300 px-3 py-1.5 rounded text-xs border border-purple-500/50 hover:bg-purple-500 hover:text-white transition font-bold"><i class="fa-solid fa-rotate-right"></i> FETCH</button>
+                </div>
+                <div id="repoListContainer" class="flex flex-col gap-2.5 max-h-[38vh] overflow-y-auto pr-1">
+                    <div class="text-center text-xs text-gray-500 py-4">Click FETCH to load GitHub repositories, HTML files, and website preview cards...</div>
+                </div>
+            </div>
+
+            <!-- TikTok Content -->
+            <div id="databankTiktokContent" class="flex flex-col gap-2.5 hidden">
+                <div class="flex gap-2 items-center">
+                    <input type="text" id="tiktokUserInput" value="projext_42" placeholder="TikTok Username (e.g. projext_42)" class="flex-1 bg-black/40 border border-white/20 rounded px-2.5 py-1.5 text-xs text-white outline-none focus:border-pink-400">
+                    <button onclick="fetchTikTokFeed()" class="bg-pink-500/30 text-pink-300 px-3 py-1.5 rounded text-xs border border-pink-500/50 hover:bg-pink-500 hover:text-white transition font-bold"><i class="fa-solid fa-video"></i> LOAD</button>
+                </div>
+                <div id="tiktokListContainer" class="grid grid-cols-2 gap-2.5 max-h-[38vh] overflow-y-auto pr-1">
+                    <div class="col-span-2 text-center text-xs text-gray-500 py-4">Click LOAD to preview TikTok videos and user streams for <span class="text-pink-300">projext_42</span>...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Intro / Story Brief Modal -->
+    <div id="introSceneModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden pointer-events-auto">
+        <div class="glass-panel p-6 max-w-lg w-full border-pink-400/50 relative flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-2">
+                <h2 class="text-base font-bold font-outfit text-pink-400"><i class="fa-solid fa-book-open mr-2"></i>ST. PAULI WE : REALITY MIX BRIEF</h2>
+                <button onclick="togglePanel('introSceneModal')" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="text-xs text-gray-200 leading-relaxed font-outfit flex flex-col gap-2.5">
+                <p><strong class="text-cyan-300">Welcome to the Interactive Storyteller & IRL Reality Grid!</strong> This application blends digital cyberpunk web-apps with real-world pen-and-paper roleplay across St. Pauli and cosmic sectors.</p>
+                <p><strong class="text-yellow-300">Key Features:</strong></p>
+                <ul class="list-disc pl-5 space-y-1 text-gray-300">
+                    <li><strong>Meshed 3D Stages:</strong> Toggle between Cubic courtroom and Spheric star grids in Three.js.</li>
+                    <li><strong>Case Vault & Universal Media:</strong> Bind and preview MP4, M4V, GLB 3D models, PDFs, HTML links, transparent PNGs, GIFs, and GitHub repos.</li>
+                    <li><strong>Character JRPG Editor:</strong> Customize stats, avatars, clans, and roles. Fully swappable Tribunal Stage roles!</li>
+                    <li><strong>Cyber-Scroll Viewer:</strong> Read long-form lore and documents like an ancient glowing cyber-scroll (📜).</li>
+                    <li><strong>Explorer vs Editor Mode:</strong> Switch effortlessly between playing the interactive story or editing the underlying vaults and scenes.</li>
+                </ul>
+            </div>
+            <button onclick="togglePanel('introSceneModal')" class="w-full py-2 bg-gradient-to-r from-pink-500 to-cyan-500 text-black font-extrabold rounded-xl hover:opacity-90 transition text-xs">
+                ENTER THE GRID & PLAY
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const STATE = {
+            mode: 'explorer',
+            stageMode: 'meshed',
+            panels: {
+                pokedexPanel: false, charEditorPanel: false, evidenceVaultPanel: false,
+                starmapPanel: false, scrollPanel: false, tribunalPanel: false,
+                repoPanel: false, introSceneModal: false
+            },
+            joystick: { active: false, dx: 0, dy: 0 },
+            camera: { zoom: 75, vx: 0, vy: 0, vz: 0 },
+            audio: { bgmPlaying: false, voiceEnabled: false },
+            activeScriptText: "Follow the rainbow colors. The hunt after the rabbit begins across St. Pauli."
+        };
+
+        let CARDS = [
+            {
+                id: 'c_valerie', name: 'Queen V4lerie', clan: 'Bunny Clan', type: 'Q♠',
+                hp: 120, agi: 90, cyb: 98,
+                justiceRoll: 'Queen of Spades - Supreme Arbiter of Balance',
+                img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80',
+                color: 'text-purple-400', border: 'border-purple-400'
+            },
+            {
+                id: 'c_kaelen', name: 'Alpha Kaelen', clan: 'Wolf Packs', type: 'K♦',
+                hp: 150, agi: 80, cyb: 88,
+                justiceRoll: 'King of Diamonds - Defender of Sector Integrity',
+                img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80',
+                color: 'text-cyan-400', border: 'border-cyan-400'
+            },
+            {
+                id: 'c_lyra', name: 'Ace Lyra', clan: 'Dove Army', type: 'A♣',
+                hp: 100, agi: 95, cyb: 92,
+                justiceRoll: 'Ace of Clubs - Vanguard of Universal Amnesty',
+                img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&q=80',
+                color: 'text-pink-400', border: 'border-pink-400'
+            },
+            {
+                id: 'c_corvus', name: 'Sage Corvus', clan: 'Night Owls', type: 'J♥',
+                hp: 110, agi: 85, cyb: 95,
+                justiceRoll: 'Joker of Hearts - Wildcard of Midnight Truths',
+                img: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80',
+                color: 'text-yellow-300', border: 'border-yellow-300'
+            }
+        ];
+
+        let EVIDENCE_VAULT = [
+            { id: 'ev_1', name: 'Rainbow Rabbit Trajectory', type: 'video', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', desc: 'Encrypted MP4 recording of neon rabbit leap.' },
+            { id: 'ev_2', name: 'Cyber Hologram Model', type: 'glb', url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb', desc: '3D GLB model recovered from sector zero.' },
+            { id: 'ev_3', name: 'Manifesto PDF', type: 'pdf', url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', desc: 'Decentralized legal pact of St. Pauli WE.' },
+            { id: 'ev_4', name: 'Harbor Neon Map', type: 'image', url: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=600&q=80', desc: 'High-res transparent-ready neon marker layout.' },
+            { id: 'ev_5', name: 'Glitch GIF Animation', type: 'gif', url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiOkM/giphy.gif', desc: 'Animated glitch sequence loop.' },
+            { id: 'ev_6', name: 'Autonomous Webnode', type: 'html', url: 'https://example.com', desc: 'Embedded HTML node link script.' }
+        ];
+
+        let TRIBUNAL_ROLES = {
+            Judge: 'c_valerie',
+            Witness: 'c_kaelen',
+            Perpetrator: 'c_corvus',
+            Jury: 'c_lyra'
+        };
+
+        const STAR_LOCATIONS = [
+            { name: "Wilson-Horror-Street-Show", desc: "Subterranean theater of neon illusions and ghost audio loops.", icon: "fa-masks-theater", color: "text-pink-400" },
+            { name: "Dark Candle Stories", desc: "Secret basement archives lit by wax and encrypted microchips.", icon: "fa-candle-holder", color: "text-yellow-300" },
+            { name: "Crazy Pandemic Chronicles", desc: "Historical records of resilience, solidarity, and decentralized care.", icon: "fa-virus-covid", color: "text-red-400" },
+            { name: "Zauberwald", desc: "The mystical electronic enchanted forest bridging Hamburg and cosmos.", icon: "fa-tree", color: "text-emerald-400" },
+            { name: "Steinerne Steppe", desc: "Brutalism meets community gardens in concrete flats.", icon: "fa-mountain", color: "text-cyan-400" },
+            { name: "Over the Bridge", desc: "Gateway connecting St. Pauli across Elbe canals.", icon: "fa-bridge", color: "text-purple-400" }
+        ];
+
+        // --- Panel Toggle Controller ---
+        function togglePanel(id) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            STATE.panels[id] = !STATE.panels[id];
+            if(STATE.panels[id]) {
+                el.classList.remove('hidden');
+                bringToFront(el);
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        function bringToFront(el) {
+            document.querySelectorAll('.drag-window').forEach(w => w.style.zIndex = '39');
+            el.style.zIndex = '50';
+        }
+
+        // --- Draggable & Resizable Window Logic ---
+        function makeWindowsDraggableAndResizable() {
+            document.querySelectorAll('.drag-window').forEach(win => {
+                const header = win.querySelector('.drag-header');
+                if(!header) return;
+
+                let isDragging = false;
+                let startX, startY, initX, initY;
+
+                header.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    const rect = win.getBoundingClientRect();
+                    initX = rect.left;
+                    initY = rect.top;
+                    win.style.position = 'absolute';
+                    win.style.left = initX + 'px';
+                    win.style.top = initY + 'px';
+                    win.style.transform = 'none';
+                    bringToFront(win);
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if(!isDragging) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    win.style.left = Math.max(0, initX + dx) + 'px';
+                    win.style.top = Math.max(0, initY + dy) + 'px';
+                });
+
+                document.addEventListener('mouseup', () => { isDragging = false; });
+            });
+        }
+
+        // --- Audio Visualizer & Toggle ---
+        function initEQ() {
+            const eq = document.getElementById('eqVisualizer');
+            if(!eq) return;
+            eq.innerHTML = Array.from({length: 16}).map(() => `
+                <div class="flex-1 bg-cyan-400/40 rounded-full transition-all duration-150" style="height: ${Math.random()*80 + 20}%"></div>
+            `).join('');
+            setInterval(() => {
+                if(!STATE.audio.bgmPlaying) return;
+                const bars = eq.children;
+                for(let b of bars) {
+                    b.style.height = (Math.floor(Math.random() * 85) + 15) + '%';
+                }
+            }, 180);
+        }
+
+        function toggleGlobalAudio() {
+            STATE.audio.bgmPlaying = !STATE.audio.bgmPlaying;
+            const btn = document.getElementById('mainPlayBtn');
+            const audio = document.getElementById('bgmAudio');
+            if(STATE.audio.bgmPlaying) {
+                btn.className = "fa-solid fa-pause text-xs text-pink-400 animate-pulse";
+                // Using synthesized or fallback audio stream if needed
+                audio.src = "https://actions.google.com/sounds/v1/ambiences/space_ship_engine.ogg";
+                audio.play().catch(e => console.log('Audio autoplay restricted:', e));
+            } else {
+                btn.className = "fa-solid fa-play text-xs";
+                audio.pause();
+            }
+        }
+
+        // --- App Mode Toggle ---
+        function toggleAppMode() {
+            STATE.mode = STATE.mode === 'explorer' ? 'editor' : 'explorer';
+            const btnText = document.getElementById('modeToggleText');
+            if(STATE.mode === 'editor') {
+                btnText.innerText = "EDITOR MODE ACTIVE";
+                document.getElementById('modeToggleBtn').className = "glass-panel px-3 py-1.5 flex items-center gap-1.5 text-pink-400 border-pink-400 hover:bg-pink-400/20 font-bold transition";
+                togglePanel('charEditorPanel');
+            } else {
+                btnText.innerText = "EXPLORER (GAMER) MODE";
+                document.getElementById('modeToggleBtn').className = "glass-panel px-3 py-1.5 flex items-center gap-1.5 text-yellow-300 border-yellow-300/50 hover:bg-yellow-300/20 font-bold transition";
+            }
+        }
+
+        // --- Render Roster ---
+        function renderPokedex() {
+            const grid = document.getElementById('cardGrid');
+            if(!grid) return;
+            grid.innerHTML = CARDS.map(c => `
+                <div class="glass-panel p-2.5 rounded-xl border ${c.border} flex flex-col cursor-grab active:cursor-grabbing hover:scale-[1.02] transition transform"
+                     draggable="true" ondragstart="startDrag(event, '${c.id}')" onclick="inspectCharacter('${c.id}')">
+                    <div class="w-full h-28 rounded-lg overflow-hidden border border-white/20 relative">
+                        <img src="${c.img}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/0a0814/4dd0e1?text=Media+Asset'">
+                        <span class="absolute top-1 right-1 text-[9px] bg-black/70 px-1.5 py-0.5 rounded text-cyan-300 font-bold">${c.type}</span>
+                    </div>
+                    <div class="mt-2 text-center">
+                        <div class="text-xs font-bold ${c.color}">${c.name}</div>
+                        <div class="text-[8px] text-gray-300 mt-0.5 truncate">HP:${c.hp} | AGI:${c.agi}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            const select = document.getElementById('editCharSelect');
+            if(select) {
+                select.innerHTML = CARDS.map(c => `<option value="${c.id}">${c.name} (${c.clan})</option>`).join('');
+                if(CARDS.length > 0) loadCharIntoEditor(CARDS[0].id);
+            }
+        }
+
+        function inspectCharacter(id) {
+            const c = CARDS.find(item => item.id === id);
+            if(!c) return;
+            document.getElementById('editCharSelect').value = id;
+            loadCharIntoEditor(id);
+            if(!STATE.panels.charEditorPanel) togglePanel('charEditorPanel');
+        }
+
+        function loadCharIntoEditor(id = null) {
+            const targetId = id || document.getElementById('editCharSelect').value;
+            const c = CARDS.find(item => item.id === targetId);
+            if(!c) return;
+            document.getElementById('ecName').value = c.name;
+            document.getElementById('ecClan').value = c.clan;
+            document.getElementById('ecType').value = c.type;
+            document.getElementById('ecColor').value = c.color;
+            document.getElementById('ecImg').value = c.img;
+            document.getElementById('ecHp').value = c.hp;
+            document.getElementById('ecAgi').value = c.agi;
+            document.getElementById('ecCyb').value = c.cyb;
+            document.getElementById('ecRole').value = c.justiceRoll;
+        }
+
+        function saveCharacterEdits() {
+            const targetId = document.getElementById('editCharSelect').value;
+            const c = CARDS.find(item => item.id === targetId);
+            if(!c) return;
+            c.name = document.getElementById('ecName').value;
+            c.clan = document.getElementById('ecClan').value;
+            c.type = document.getElementById('ecType').value;
+            c.color = document.getElementById('ecColor').value;
+            c.img = document.getElementById('ecImg').value;
+            c.hp = parseInt(document.getElementById('ecHp').value) || 100;
+            c.agi = parseInt(document.getElementById('ecAgi').value) || 85;
+            c.cyb = parseInt(document.getElementById('ecCyb').value) || 90;
+            c.justiceRoll = document.getElementById('ecRole').value;
+
+            renderPokedex();
+            renderTribunalStage();
+        }
+
+        function createNewCharacter() {
+            const newId = 'c_' + Date.now();
+            CARDS.push({
+                id: newId, name: 'New Operative', clan: 'Resistance', type: '★',
+                hp: 100, agi: 90, cyb: 90, justiceRoll: 'Freelance Cyber Runner',
+                img: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=600&q=80',
+                color: 'text-emerald-400', border: 'border-emerald-400'
+            });
+            renderPokedex();
+            document.getElementById('editCharSelect').value = newId;
+            loadCharIntoEditor(newId);
+        }
+
+        function deleteCurrentCharacter() {
+            const targetId = document.getElementById('editCharSelect').value;
+            if(CARDS.length <= 1) return;
+            CARDS = CARDS.filter(c => c.id !== targetId);
+            renderPokedex();
+        }
+
+        // --- Case Vault & Media ---
+        function renderEvidenceVault() {
+            const container = document.getElementById('evidenceGridContainer');
+            if(!container) return;
+            container.innerHTML = EVIDENCE_VAULT.map(ev => `
+                <div class="glass-panel p-2 rounded-xl border border-white/15 flex flex-col items-center cursor-pointer hover:border-yellow-300 hover:bg-yellow-300/10 transition group"
+                     onclick="openEvidenceItem('${ev.id}')">
+                    <div class="w-full h-20 rounded-lg overflow-hidden bg-black/50 relative flex items-center justify-center">
+                        ${ev.type === 'video' ? '<i class="fa-solid fa-file-video text-2xl text-cyan-400"></i>' : 
+                          ev.type === 'glb' ? '<i class="fa-solid fa-cube text-2xl text-pink-400"></i>' : 
+                          ev.type === 'pdf' ? '<i class="fa-solid fa-file-pdf text-2xl text-red-400"></i>' : 
+                          ev.type === 'html' ? '<i class="fa-solid fa-code text-2xl text-purple-400"></i>' : 
+                          ev.type === 'gif' ? '<i class="fa-solid fa-film text-2xl text-yellow-300"></i>' : 
+                          `<img src="${ev.url}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/150x150/0a0814/ffee58?text=Evidence'">`}
+                        <span class="absolute bottom-1 right-1 text-[8px] bg-black/80 px-1 rounded text-yellow-300 uppercase">${ev.type}</span>
+                    </div>
+                    <span class="text-[10px] font-bold text-white mt-1.5 text-center truncate w-full">${ev.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function addEvidenceItem() {
+            const url = document.getElementById('newMediaUrl').value.trim();
+            const type = document.getElementById('newMediaType').value;
+            if(!url) return;
+            const id = 'ev_' + Date.now();
+            EVIDENCE_VAULT.push({ id, name: 'Evidence ' + (EVIDENCE_VAULT.length + 1), type, url, desc: 'Custom injected media asset.' });
+            document.getElementById('newMediaUrl').value = '';
+            renderEvidenceVault();
+        }
+
+        function openEvidenceItem(id) {
+            const ev = EVIDENCE_VAULT.find(item => item.id === id);
+            if(!ev) return;
+            
+            if(!STATE.panels.scrollPanel) togglePanel('scrollPanel');
+            const preview = document.getElementById('scrollDynamicPreview');
+            
+            if(ev.type === 'video') {
+                preview.innerHTML = `<video controls autoplay class="w-full rounded-lg max-h-48 object-cover"><source src="${ev.url}"></video><div class="mt-2 text-xs font-bold text-yellow-300">${ev.name}</div><p class="text-[10px] text-gray-300 mt-1">${ev.desc}</p>`;
+            } else if(ev.type === 'glb') {
+                preview.innerHTML = `<div class="p-4 bg-black/60 rounded border border-pink-400 text-center"><i class="fa-solid fa-cube text-3xl text-pink-400 mb-2 animate-bounce"></i><div class="text-xs font-bold text-pink-300">${ev.name} [3D GLB Model]</div><a href="${ev.url}" target="_blank" class="text-[10px] text-cyan-400 underline mt-1 block">Open Model Stream</a></div>`;
+            } else if(ev.type === 'pdf') {
+                preview.innerHTML = `<div class="p-4 bg-black/60 rounded border border-red-400 text-center"><i class="fa-solid fa-file-pdf text-3xl text-red-400 mb-2"></i><div class="text-xs font-bold text-red-300">${ev.name} [PDF Document]</div><iframe src="${ev.url}" class="w-full h-36 mt-2 rounded bg-white"></iframe></div>`;
+            } else if(ev.type === 'html') {
+                preview.innerHTML = `<div class="p-4 bg-black/60 rounded border border-purple-400 text-center"><i class="fa-solid fa-code text-3xl text-purple-400 mb-2"></i><div class="text-xs font-bold text-purple-300">${ev.name} [HTML Webnode]</div><a href="${ev.url}" target="_blank" class="mt-2 inline-block px-3 py-1 bg-purple-500 text-white rounded text-xs font-bold">Launch Web Link</a></div>`;
+            } else {
+                preview.innerHTML = `<img src="${ev.url}" class="w-full rounded-lg max-h-40 object-cover"><div class="mt-2 text-xs font-bold text-yellow-300">${ev.name}</div><p class="text-[10px] text-gray-300 mt-1">${ev.desc}</p>`;
+            }
+        }
+
+        // --- Star Map ---
+        function renderStarMap() {
+            const grid = document.getElementById('starMapGrid');
+            if(!grid) return;
+            grid.innerHTML = STAR_LOCATIONS.map(loc => `
+                <div onclick="triggerStarLocation('${loc.name}', '${loc.desc}')" class="glass-panel p-2.5 rounded-xl border border-white/10 flex flex-col items-center text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-400/10 transition">
+                    <i class="fa-solid ${loc.icon} text-lg ${loc.color} mb-1"></i>
+                    <span class="text-[11px] font-bold text-white leading-snug">${loc.name}</span>
+                    <span class="text-[8px] text-gray-400 mt-1 line-clamp-2">${loc.desc}</span>
+                </div>
+            `).join('');
+        }
+
+        function triggerStarLocation(name, desc) {
+            STATE.activeScriptText = `Episode Broadcast: Sector ${name}. Log: ${desc}`;
+            if(!STATE.panels.scrollPanel) togglePanel('scrollPanel');
+            document.getElementById('scrollDynamicPreview').innerHTML = `<div class="text-sm font-bold text-emerald-400 mb-1">${name}</div><p class="text-xs text-gray-200">${desc}</p>`;
+        }
+
+        // --- Tribunal Stage ---
+        function renderTribunalStage() {
+            for(const role in TRIBUNAL_ROLES) {
+                const cardId = TRIBUNAL_ROLES[role];
+                const card = CARDS.find(c => c.id === cardId);
+                const slotEl = document.getElementById(`slot-${role}`);
+                if(!slotEl) continue;
+                if(card) {
+                    slotEl.innerHTML = `<img src="${card.img}" class="w-full h-full object-cover rounded-md border ${card.border}" onerror="this.src='https://placehold.co/100x100/0a0814/f06292?text=Actor'">`;
+                } else {
+                    slotEl.innerHTML = `<div class="text-gray-600 text-xl"><i class="fa-solid fa-user-plus"></i></div>`;
+                }
+            }
+        }
+
+        function openRoleSelector(role) {
+            const currentCardId = TRIBUNAL_ROLES[role];
+            const currentIndex = CARDS.findIndex(c => c.id === currentCardId);
+            const nextIndex = (currentIndex + 1) % CARDS.length;
+            TRIBUNAL_ROLES[role] = CARDS[nextIndex].id;
+            
+            renderTribunalStage();
+            const log = document.getElementById('tribunalLog');
+            if(log) log.innerHTML = `<span class="${CARDS[nextIndex].color}">${CARDS[nextIndex].name}</span> swapped into <span class="text-white font-bold">${role}</span> role.`;
+        }
+
+        function startDrag(e, cardId) {
+            e.dataTransfer.setData('text/plain', cardId);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+            if(e.currentTarget.classList.contains('dropzone')) e.currentTarget.classList.add('active');
+        }
+
+        function leaveDrop(e) {
+            if(e.currentTarget.classList.contains('dropzone')) e.currentTarget.classList.remove('active');
+        }
+
+        function handleRoleDrop(e, role) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('active');
+            const cardId = e.dataTransfer.getData('text/plain');
+            const card = CARDS.find(c => c.id === cardId);
+            if(!card) return;
+            TRIBUNAL_ROLES[role] = card.id;
+            renderTribunalStage();
+            
+            const log = document.getElementById('tribunalLog');
+            if(log) log.innerHTML = `<span class="${card.color}">${card.name}</span> assigned as <span class="text-white font-bold">${role}</span> via drop.`;
+        }
+
+        function triggerObjection(shout) {
+            const log = document.getElementById('tribunalLog');
+            const judgeCard = CARDS.find(c => c.id === TRIBUNAL_ROLES.Judge) || CARDS[0];
+            if(log) {
+                log.innerHTML = `<strong class="text-pink-400">${judgeCard.name}</strong> shouts <span class="text-yellow-300 font-extrabold text-sm">"${shout}"</span> — Objection sustained by the St. Pauli Council!`;
+            }
+        }
+
+        // --- GitHub & TikTok Hub ---
+        async function fetchGitHubRepos() {
+            const username = document.getElementById('githubUserInput').value.trim() || 'worldpeacebtn';
+            const container = document.getElementById('repoListContainer');
+            if(!container) return;
+            container.innerHTML = '<div class="text-center text-xs text-cyan-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Syncing databanks & HTML linklists...</div>';
+            try {
+                const res = await fetch(`https://api.github.com/users/${username}/repos`);
+                if(!res.ok) throw new Error('API limit reached or user not found');
+                const data = await res.json();
+                
+                container.innerHTML = data.map(repo => {
+                    const demoUrl = repo.homepage || `https://${username}.github.io/${repo.name}/`;
+                    const previewImg = `https://image.thum.io/get/width/400/${encodeURIComponent(demoUrl)}`;
+                    return `
+                        <div class="glass-panel p-3 border-purple-500/30 flex flex-col gap-2 hover:border-purple-400 transition">
+                            <div class="flex justify-between items-start">
+                                <a href="${repo.html_url}" target="_blank" class="text-xs text-purple-300 font-bold hover:underline">
+                                    <i class="fa-solid fa-book-bookmark mr-1"></i>${repo.name}
+                                </a>
+                                <span class="text-[9px] bg-white/10 px-1.5 rounded text-gray-300"><i class="fa-solid fa-star text-yellow-400 mr-0.5"></i>${repo.stargazers_count}</span>
+                            </div>
+                            <p class="text-[9px] text-gray-400">${repo.description || 'Secure repository node.'}</p>
+                            
+                            <div class="mt-1 flex flex-col sm:flex-row gap-2 items-center bg-black/40 p-2 rounded-lg border border-white/10">
+                                <div class="w-full sm:w-28 h-16 rounded overflow-hidden bg-black/60 relative flex items-center justify-center">
+                                    <img src="${previewImg}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x120/0a0814/9333ea?text=Live+Preview'">
+                                </div>
+                                <div class="flex-1 flex flex-col justify-between w-full">
+                                    <span class="text-[10px] text-cyan-300 truncate font-mono">${demoUrl}</span>
+                                    <div class="flex gap-1.5 mt-1">
+                                        <a href="${demoUrl}" target="_blank" class="flex-1 py-1 bg-cyan-500/20 text-cyan-300 text-center rounded text-[10px] font-bold border border-cyan-500/40 hover:bg-cyan-500 hover:text-black transition">
+                                            <i class="fa-solid fa-globe mr-1"></i> VISIT WEB
+                                        </a>
+                                        <button onclick="openEvidenceItemUrl('${demoUrl}', '${repo.name}')" class="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-[10px] font-bold border border-purple-500/40 hover:bg-purple-500 hover:text-white transition">
+                                            <i class="fa-solid fa-scroll"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="text-center text-xs text-red-400 py-4"><i class="fa-solid fa-triangle-exclamation"></i> Sync error: ${e.message}</div>`;
+            }
+        }
+
+        function fetchTikTokFeed() {
+            const username = document.getElementById('tiktokUserInput').value.trim() || 'projext_42';
+            const container = document.getElementById('tiktokListContainer');
+            if(!container) return;
+            container.innerHTML = '<div class="col-span-2 text-center text-xs text-pink-400 py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading TikTok video HUD for @' + username + '...</div>';
+            
+            setTimeout(() => {
+                const mockVideos = [
+                    { id: 'tt_1', title: 'St. Pauli Neon Leap #1', views: '42.5K', url: `https://www.tiktok.com/@${username}`, thumb: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&q=80' },
+                    { id: 'tt_2', title: 'Rainbow Rabbit Cosmic HUD Demo', views: '128K', url: `https://www.tiktok.com/@${username}`, thumb: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=80' },
+                    { id: 'tt_3', title: 'Cyber Vault & Tribunal Stage', views: '19.8K', url: `https://www.tiktok.com/@${username}`, thumb: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=400&q=80' },
+                    { id: 'tt_4', title: 'Resistance Street Jam IRL', views: '84.2K', url: `https://www.tiktok.com/@${username}`, thumb: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80' }
+                ];
+
+                container.innerHTML = mockVideos.map(vid => `
+                    <div class="glass-panel p-2.5 border-pink-500/30 flex flex-col gap-2 hover:border-pink-400 transition">
+                        <div class="w-full h-28 rounded-lg overflow-hidden relative bg-black/60 flex items-center justify-center group">
+                            <img src="${vid.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition">
+                            <div class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                <i class="fa-solid fa-play text-2xl text-pink-400"></i>
+                            </div>
+                            <span class="absolute bottom-1 right-1 text-[8px] bg-black/80 px-1.5 py-0.5 rounded text-pink-300 font-bold"><i class="fa-solid fa-eye mr-0.5"></i>${vid.views}</span>
+                        </div>
+                        <span class="text-[11px] font-bold text-white truncate">${vid.title}</span>
+                        <a href="${vid.url}" target="_blank" class="w-full py-1 bg-pink-500/20 text-pink-300 text-center rounded text-[10px] font-bold border border-pink-500/40 hover:bg-pink-500 hover:text-white transition">
+                            <i class="fa-brands fa-tiktok mr-1"></i> WATCH @${username}
+                        </a>
+                    </div>
+                `).join('');
+            }, 500);
+        }
+
+        function switchDatabankTab(tab) {
+            const btnG = document.getElementById('tabBtnGithub');
+            const btnT = document.getElementById('tabBtnTiktok');
+            const contentG = document.getElementById('databankGithubContent');
+            const contentT = document.getElementById('databankTiktokContent');
+
+            if(tab === 'github') {
+                btnG.className = "flex-1 py-1 px-2 rounded bg-purple-500/30 text-purple-300 text-xs font-bold transition";
+                btnT.className = "flex-1 py-1 px-2 rounded bg-white/5 text-gray-400 text-xs font-bold transition";
+                contentG.classList.remove('hidden');
+                contentT.classList.add('hidden');
+            } else {
+                btnT.className = "flex-1 py-1 px-2 rounded bg-pink-500/30 text-pink-300 text-xs font-bold transition";
+                btnG.className = "flex-1 py-1 px-2 rounded bg-white/5 text-gray-400 text-xs font-bold transition";
+                contentT.classList.remove('hidden');
+                contentG.classList.add('hidden');
+                if(document.getElementById('tiktokListContainer').children.length <= 1) {
+                    fetchTikTokFeed();
+                }
+            }
+        }
+
+        function openEvidenceItemUrl(url, name) {
+            if(!STATE.panels.scrollPanel) togglePanel('scrollPanel');
+            document.getElementById('scrollDynamicPreview').innerHTML = `<div class="text-sm font-bold text-purple-300 mb-1">${name}</div><p class="text-xs text-gray-300 mb-2">${url}</p><iframe src="${url}" class="w-full h-48 rounded bg-white"></iframe>`;
+        }
+
+        function exportStateJSON() {
+            const exportData = { STATE, CARDS, EVIDENCE_VAULT, TRIBUNAL_ROLES };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "st_pauli_we_vault_state.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        // --- Three.js Meshed Cubic & Spheric Stages ---
+        let scene, camera, renderer, cubeStage, sphereStage, particleField;
+
+        function initThreeJS() {
+            const container = document.getElementById('threeJsContainer');
+            if(!container) return;
+            scene = new THREE.Scene();
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 18;
+            camera.position.y = 2;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0x4dd0e1, 3, 100);
+            pointLight.position.set(15, 20, 15);
+            scene.add(pointLight);
+
+            const pointLight2 = new THREE.PointLight(0xf06292, 3, 100);
+            pointLight2.position.set(-15, -10, 15);
+            scene.add(pointLight2);
+
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(3000 * 3);
+            for(let i=0; i<9000; i++) pPos[i] = (Math.random() - 0.5) * 90;
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            const pMat = new THREE.PointsMaterial({ size: 0.5, color: 0x4dd0e1, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+            particleField = new THREE.Points(pGeo, pMat);
+            scene.add(particleField);
+
+            cubeStage = new THREE.Group();
+            const boxGeo = new THREE.BoxGeometry(5, 5, 5);
+            const boxMat = new THREE.MeshStandardMaterial({ color: 0xf06292, roughness: 0.3, metalness: 0.8, emissive: 0xf06292, emissiveIntensity: 0.3 });
+            const cubeMesh = new THREE.Mesh(boxGeo, boxMat);
+            const wireBox = new THREE.LineSegments(new THREE.WireframeGeometry(boxGeo), new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+            cubeStage.add(cubeMesh);
+            cubeStage.add(wireBox);
+            cubeStage.position.set(-6, 0, 0);
+            scene.add(cubeStage);
+
+            sphereStage = new THREE.Group();
+            const sphGeo = new THREE.SphereGeometry(3.8, 24, 24);
+            const sphMat = new THREE.MeshStandardMaterial({ color: 0xffee58, roughness: 0.2, metalness: 0.7, emissive: 0xd4af37, emissiveIntensity: 0.3 });
+            const sphMesh = new THREE.Mesh(sphGeo, sphMat);
+            const wireSph = new THREE.LineSegments(new THREE.WireframeGeometry(sphGeo), new THREE.LineBasicMaterial({ color: 0x4dd0e1, linewidth: 2 }));
+            sphereStage.add(sphMesh);
+            sphereStage.add(wireSph);
+            sphereStage.position.set(6, 0, 0);
+            scene.add(sphereStage);
+
+            const slider = document.getElementById('zoomSlider');
+            if(slider) {
+                slider.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    camera.fov = 175 - val;
+                    camera.updateProjectionMatrix();
+                    document.getElementById('zoomValue').innerText = (val / 100).toFixed(2) + 'x';
+                });
+            }
+
+            setupJoystick();
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function switchStageMode(mode) {
+            STATE.stageMode = mode;
+            const label = document.getElementById('currentStageLabel');
+            if(label) label.innerText = mode.toUpperCase();
+            if(mode === 'cubic') {
+                cubeStage.visible = true; sphereStage.visible = false;
+                cubeStage.position.set(0, 0, 0);
+            } else if(mode === 'spheric') {
+                cubeStage.visible = false; sphereStage.visible = true;
+                sphereStage.position.set(0, 0, 0);
+            } else {
+                cubeStage.visible = true; sphereStage.visible = true;
+                cubeStage.position.set(-6, 0, 0);
+                sphereStage.position.set(6, 0, 0);
+            }
+        }
+
+        function applyCameraPhysics() {
+            if (STATE.joystick.active) {
+                STATE.camera.vx += STATE.joystick.dx * 0.03;
+                STATE.camera.vz += STATE.joystick.dy * 0.03;
+            }
+            camera.position.x += STATE.camera.vx;
+            camera.position.z += STATE.camera.vz;
+            camera.lookAt(0, 0, 0);
+            STATE.camera.vx *= 0.93;
+            STATE.camera.vz *= 0.93;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(particleField) particleField.rotation.y += 0.0005;
+            if(cubeStage) { cubeStage.rotation.x += 0.008; cubeStage.rotation.y += 0.012; }
+            if(sphereStage) { sphereStage.rotation.x -= 0.01; sphereStage.rotation.y -= 0.008; }
+            applyCameraPhysics();
+            renderer.render(scene, camera);
+        }
+
+        function setupJoystick() {
+            const zone = document.getElementById('joystick-zone');
+            const knob = document.getElementById('joystick-knob');
+            if(!zone || !knob) return;
+            const maxR = 32;
+            let cx, cy;
+
+            const handleMove = (e) => {
+                if(!STATE.joystick.active) return;
+                e.preventDefault();
+                const x = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                let dx = x - cx, dy = y - cy;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if(dist > maxR) { dx *= maxR/dist; dy *= maxR/dist; }
+                knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                STATE.joystick.dx = dx / maxR;
+                STATE.joystick.dy = dy / maxR;
+            };
+
+            const handleStart = (e) => {
+                STATE.joystick.active = true;
+                const rect = zone.getBoundingClientRect();
+                cx = rect.left + rect.width/2; cy = rect.top + rect.height/2;
+                knob.style.transition = 'none';
+                handleMove(e);
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('touchmove', handleMove, {passive: false});
+            };
+
+            const handleEnd = () => {
+                STATE.joystick.active = false;
+                STATE.joystick.dx = 0; STATE.joystick.dy = 0;
+                knob.style.transition = 'transform 0.15s ease-out';
+                knob.style.transform = `translate(-50%, -50%)`;
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('touchmove', handleMove);
+            };
+
+            zone.addEventListener('mousedown', handleStart);
+            zone.addEventListener('touchstart', handleStart, {passive: false});
+            document.addEventListener('mouseup', handleEnd);
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        window.onload = () => {
+            initEQ();
+            renderPokedex();
+            renderEvidenceVault();
+            renderStarMap();
+            renderTribunalStage();
+            makeWindowsDraggableAndResizable();
+            initThreeJS();
+        };
+    </script>
+</body>
+</html>
