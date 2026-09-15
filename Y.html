@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <!-- STRICT Viewport settings to prevent all forms of iOS zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
+    <title>ALLiSTAR Cyber Wonderland HUD</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- MODEL VIEWER SAFE CDN -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+    <style>
+        :root {
+            --glow-primary: #ec4899;
+            --glow-secondary: #8b5cf6;
+            --glow-cyan: #06b6d4;
+            --safe-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030014;
+            color: #f3f4f6;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: pan-y;
+            height: 100dvh;
+            width: 100vw;
+        }
+
+        /* CRITICAL: Force 16px on all inputs to prevent iOS zoom */
+        input, textarea, select { 
+            font-size: 16px !important; 
+            touch-action: manipulation;
+        }
+
+        .font-cyber { font-family: 'Orbitron', sans-serif; }
+
+        /* Compact HUD Base */
+        .hud-glass {
+            background: rgba(10, 5, 20, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .hud-glow {
+            border: 1px solid rgba(236, 72, 153, 0.4);
+            box-shadow: inset 0 0 10px rgba(139, 92, 246, 0.2);
+        }
+
+        /* Animations */
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin-slow 4s linear infinite; }
+        
+        @keyframes hud-pop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .anim-hud { animation: hud-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* Feed Snap */
+        .snap-container { height: 100dvh; overflow-y: scroll; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+        .snap-item { height: 100dvh; width: 100%; scroll-snap-align: start; scroll-snap-stop: always; position: relative; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .pb-safe { padding-bottom: max(1rem, var(--safe-bottom)); }
+
+        /* Honeycomb (Wespenwaben) Shape */
+        .hex-cell {
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            aspect-ratio: 1/1.15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.06);
+            transition: all 0.2s;
+            position: relative;
+        }
+        .hex-cell:active { transform: scale(0.9); }
+
+        /* 3D Paper Cube HUD */
+        .scene { width: 100px; height: 100px; perspective: 800px; margin: 0 auto; transition: all 0.5s ease; }
+        .cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transform: translateZ(-50px); transition: all 0.8s; }
+        .cube.spinning { animation: rotateCube 10s infinite linear; }
+        .cube.unfolded { animation: none; transform: translateZ(-200px) rotateY(0deg) rotateX(0deg); opacity: 0; }
+        .cube__face { position: absolute; width: 100px; height: 100px; border: 1px solid #06b6d4; background: rgba(10, 5, 25, 0.95); display: flex; align-items: center; justify-content: center; font-size: 24px; color: cyan; }
+        .cube__face--front  { transform: rotateY(  0deg) translateZ(50px); }
+        .cube__face--right  { transform: rotateY( 90deg) translateZ(50px); }
+        .cube__face--back   { transform: rotateY(180deg) translateZ(50px); }
+        .cube__face--left   { transform: rotateY(-90deg) translateZ(50px); }
+        .cube__face--top    { transform: rotateX( 90deg) translateZ(50px); }
+        .cube__face--bottom { transform: rotateX(-90deg) translateZ(50px); }
+        @keyframes rotateCube { 100% { transform: translateZ(-50px) rotateY(360deg) rotateX(360deg); } }
+        
+        /* Swipe Handles (for iframes/3d models) */
+        .swipe-zone { position: absolute; top: 0; bottom: 0; width: 12%; z-index: 25; pointer-events: auto; }
+        .swipe-left-zone { left: 0; }
+        .swipe-right-zone { right: 0; }
+    </style>
+</head>
+
+<body class="bg-[#030014] text-white">
+
+    <header class="absolute top-0 left-0 right-0 z-30 flex justify-between items-center px-4 py-3 bg-gradient-to-b from-[#030014]/90 to-transparent pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
+        <div class="flex items-center space-x-2">
+            <div id="active-user-badge" onclick="openProfile()" class="flex items-center space-x-2 hud-glass hud-glow px-3 py-1.5 rounded-full shadow-lg cursor-pointer hover:border-pink-500 transition">
+                <div class="w-6 h-6 rounded-full bg-cyan-400 text-black font-bold flex items-center justify-center text-xs font-cyber" id="user-avatar-initial">A</div>
+                <span class="text-xs font-bold tracking-wider font-cyber" id="header-username">ALLiSTAR</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <button onclick="toggleHud('upload')" class="bg-pink-600/80 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg border border-pink-400/40 hover:bg-pink-500 transition">
+                <i class="fa-solid fa-plus"></i> Upload
+            </button>
+            <button onclick="toggleHud('network')" class="hud-glass p-2 rounded-full text-sm text-purple-400 shadow-lg border border-purple-500/30 hover:text-white transition">
+                <i class="fa-solid fa-users"></i>
+            </button>
+            <button id="mute-global-btn" class="hud-glass p-2 rounded-full text-sm text-cyan-300 shadow-lg border border-cyan-500/30 hover:text-white transition">
+                <i id="global-mute-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <main id="video-feed" class="snap-container no-scrollbar relative w-full pointer-events-auto"></main>
+
+    <!-- Swipe zones overlay -->
+    <div class="swipe-zone swipe-left-zone flex items-center justify-start pl-1 opacity-20 hover:opacity-80 transition-opacity duration-300" id="zone-left" onclick="openAlbums()" title="Swipe Links für Alben">
+        <div class="h-32 w-1.5 bg-cyan-500/70 rounded-full blur-[1px] shadow-[0_0_10px_cyan]"></div>
+    </div>
+    <div class="swipe-zone swipe-right-zone flex items-center justify-end pr-1 opacity-20 hover:opacity-80 transition-opacity duration-300" id="zone-right" onclick="openProfile()" title="Swipe Rechts für Profil">
+        <div class="h-32 w-1.5 bg-pink-500/70 rounded-full blur-[1px] shadow-[0_0_10px_pink]"></div>
+    </div>
+
+    <!-- Upload HUD Modal -->
+    <div id="hud-upload" class="fixed bottom-20 left-4 right-4 z-50 hud-glass hud-glow rounded-2xl p-4 hidden anim-hud pointer-events-auto max-h-[75dvh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-bold font-cyber text-pink-400"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Cyber Upload & Drag/Drop</h3>
+            <button onclick="toggleHud('upload')" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="space-y-3">
+            <!-- Drag & Drop Zone -->
+            <label id="drop-zone" class="w-full flex flex-col items-center justify-center bg-black/60 border-2 border-dashed border-zinc-600 rounded-xl p-4 cursor-pointer hover:border-pink-500 transition">
+                <i class="fa-solid fa-file-arrow-up text-2xl text-cyan-400 mb-2"></i>
+                <span class="text-xs text-zinc-300 font-medium" id="file-name-display">Datei hierher ziehen oder klicken...</span>
+                <span class="text-[9px] text-zinc-500 mt-1">MP4, MP3, M4A, GLB, PDF, HTML, PNG, JPG</span>
+                <input type="file" id="up-file" class="hidden" accept="video/*,audio/*,.glb,.pdf,.html,image/*" onchange="handleLocalFile(event)">
+            </label>
+            
+            <div class="flex items-center space-x-2 w-full">
+                <div class="h-px bg-zinc-700 flex-1"></div>
+                <span class="text-[10px] text-zinc-500 font-cyber">ODER DIREKT-URL</span>
+                <div class="h-px bg-zinc-700 flex-1"></div>
+            </div>
+
+            <input type="text" id="up-url" placeholder="URL (MP4, MP3, GLB, HTML, PDF...)" class="w-full bg-black/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+            <input type="text" id="up-title" placeholder="Titel / Beschreibung..." class="w-full bg-black/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+            <div class="flex space-x-2">
+                <input type="text" id="up-tag" placeholder="Album / Tag (z.B. Beats, 3D)" class="flex-1 bg-black/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                <button class="bg-zinc-800 px-3 rounded-lg text-xs"><i class="fa-solid fa-tag text-cyan-400"></i></button>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <span class="text-[10px] text-zinc-400">Rolle: <span id="current-upload-role" class="text-cyan-400 font-bold">ALLiSTAR</span></span>
+                <button onclick="saveUpload()" class="bg-gradient-to-r from-pink-600 to-purple-600 px-4 py-2 rounded-lg text-xs font-bold text-white shadow-lg hover:opacity-95 transition">In die Matrix senden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Menu HUD -->
+    <div id="hud-action" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 w-64 hud-glass border border-cyan-500/40 rounded-2xl p-3 hidden anim-hud pointer-events-auto">
+        <div class="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
+            <span class="text-xs font-bold text-cyan-300">Medien-Aktionen</span>
+            <button onclick="toggleHud('action')" class="text-zinc-400"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-center">
+            <button onclick="actionSticker()" class="bg-black/40 hover:bg-zinc-800 p-2 rounded-xl text-xs transition"><i class="fa-solid fa-stamp text-pink-400 mb-1 text-lg block"></i>Als Sticker</button>
+            <button onclick="actionDownload()" class="bg-black/40 hover:bg-zinc-800 p-2 rounded-xl text-xs transition"><i class="fa-solid fa-download text-green-400 mb-1 text-lg block"></i>Download</button>
+            <button onclick="actionCopy()" class="bg-black/40 hover:bg-zinc-800 p-2 rounded-xl text-xs transition"><i class="fa-solid fa-link text-blue-400 mb-1 text-lg block"></i>Link kopieren</button>
+            <button onclick="actionPlaylist()" class="bg-black/40 hover:bg-zinc-800 p-2 rounded-xl text-xs transition"><i class="fa-solid fa-list-ul text-yellow-400 mb-1 text-lg block"></i>Zum Album</button>
+        </div>
+    </div>
+
+    <!-- Albums HUD (Left Swipe Menu) -->
+    <div id="hud-albums" class="fixed inset-0 z-40 bg-black/90 backdrop-blur-xl hidden flex-col pb-safe pt-[max(2rem,env(safe-area-inset-top))] px-4 anim-hud pointer-events-auto overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-layer-group text-cyan-400 text-xl"></i>
+                <h2 class="text-xl font-cyber text-pink-400 font-bold">Wunderland Vault Albums</h2>
+            </div>
+            <button onclick="closeAlbums()" class="text-zinc-400 text-2xl hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="flex space-x-2 mb-4">
+            <button onclick="startSlideshow()" class="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 py-2.5 rounded-xl text-xs font-bold font-cyber shadow-lg flex items-center justify-center space-x-2 hover:opacity-90">
+                <i class="fa-solid fa-play"></i> <span>Slideshow / Autopilot</span>
+            </button>
+            <button onclick="addNewAlbumPrompt()" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2.5 rounded-xl text-xs font-bold text-pink-400 border border-pink-500/30">
+                <i class="fa-solid fa-plus"></i> Album
+            </button>
+        </div>
+        
+        <!-- iPhone App Grid Layout -->
+        <div class="grid grid-cols-3 gap-y-6 gap-x-4" id="album-grid"></div>
+
+        <!-- Dev Commentary Panel -->
+        <div class="mt-8 hud-glass p-4 rounded-2xl border-l-4 border-yellow-500 mb-6">
+            <div class="flex justify-between items-center mb-1">
+                <h4 class="text-xs font-bold text-yellow-400 flex items-center"><i class="fa-solid fa-code mr-1.5"></i> Dev Commentary (Dev El Oper)</h4>
+                <span class="text-[9px] bg-yellow-500/20 px-2 py-0.5 rounded text-yellow-300 font-mono">Active Mode</span>
+            </div>
+            <p class="text-xs text-zinc-300 leading-relaxed" id="dev-comment-text">"Willkommen im Album-Vault. Jedes Album bündelt magische Medien des Wunderlandes. Tippe auf ein Album, um es direkt im Feed zu laden oder starte den Autopiloten."</p>
+        </div>
+    </div>
+
+    <!-- Profile HUD (Right Swipe Menu & Paper Cube Honeycomb) -->
+    <div id="hud-profile" class="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl hidden flex-col anim-hud pointer-events-auto overflow-y-auto">
+        
+        <!-- Cube Intro State -->
+        <div id="profile-cube-state" class="flex-1 flex flex-col items-center justify-center relative p-4">
+            <button onclick="closeProfile()" class="absolute top-6 right-6 text-zinc-400 text-2xl hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-cyber text-cyan-400 mb-2" id="cube-profile-title">@ALLiSTAR</h2>
+            <p class="text-[10px] text-pink-300 mb-8 text-center">Tippe den goldenen Voxel-Würfel an, um das Wunderland zu entfalten</p>
+            <div class="scene cursor-pointer" onclick="unfoldProfile()">
+                <div class="cube spinning" id="profile-cube">
+                    <div class="cube__face cube__face--front border-yellow-400 text-yellow-300"><i class="fa-solid fa-user-astronaut"></i></div>
+                    <div class="cube__face cube__face--back border-yellow-400 text-yellow-300"><i class="fa-solid fa-code"></i></div>
+                    <div class="cube__face cube__face--right border-yellow-400 text-yellow-300"><i class="fa-solid fa-image"></i></div>
+                    <div class="cube__face cube__face--left border-yellow-400 text-yellow-300"><i class="fa-solid fa-note-sticky"></i></div>
+                    <div class="cube__face cube__face--top bg-yellow-900/50 border-yellow-400"></div>
+                    <div class="cube__face cube__face--bottom bg-yellow-900/50 border-yellow-400"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unfolded Honeycomb (Wespenwaben) State -->
+        <div id="profile-hex-state" class="hidden flex-col w-full min-h-full relative pb-safe">
+            <div class="h-36 w-full bg-gradient-to-r from-pink-600 via-purple-700 to-cyan-600 relative" id="profile-banner">
+                <button onclick="closeProfile()" class="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 bg-black/50 p-2 rounded-full text-white hover:bg-black transition"><i class="fa-solid fa-chevron-right"></i></button>
+                <div class="absolute -bottom-10 left-6 flex items-end space-x-4">
+                    <div class="w-20 h-20 rounded-2xl bg-zinc-900 border-2 border-cyan-400 flex items-center justify-center shadow-xl rotate-3 relative group overflow-hidden cursor-pointer" onclick="changeAvatarPrompt()" title="Profilbild ändern">
+                        <i class="fa-solid fa-user-astronaut text-3xl text-pink-400" id="profile-main-icon"></i>
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-[9px] text-cyan-300 font-bold">Ändern</div>
+                    </div>
+                    <div class="mb-2">
+                        <h2 class="text-xl font-bold font-cyber text-white drop-shadow-md shadow-black" id="profile-display-name">ALLiSTAR</h2>
+                        <span class="text-[9px] bg-black/60 px-2 py-0.5 rounded text-cyan-300 border border-cyan-500/50" id="profile-role-badge">System Master</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 mt-16 space-y-6">
+                <!-- Role Selector -->
+                <div class="hud-glass p-3 rounded-xl border border-cyan-500/30">
+                    <span class="text-xs font-bold text-cyan-300 mb-2 block"><i class="fa-solid fa-crown mr-1"></i> Identität / Rolle wählen</span>
+                    <div class="grid grid-cols-4 gap-1.5" id="role-selector-grid">
+                        <button onclick="switchRole('Dev El Oper')" class="role-btn bg-purple-900/60 border border-purple-500 text-[10px] py-1.5 px-1 rounded font-bold text-purple-200">Dev</button>
+                        <button onclick="switchRole('ALLiSTAR')" class="role-btn bg-pink-900/60 border border-pink-500 text-[10px] py-1.5 px-1 rounded font-bold text-pink-200">ALLi</button>
+                        <button onclick="switchRole('Kaninchen')" class="role-btn bg-cyan-900/60 border border-cyan-500 text-[10px] py-1.5 px-1 rounded font-bold text-cyan-200">Kaninchen</button>
+                        <button onclick="switchRole('KING')" class="role-btn bg-zinc-800 border border-zinc-700 text-[10px] py-1.5 px-1 rounded text-zinc-300">KING</button>
+                        <button onclick="switchRole('QUEEN')" class="role-btn bg-zinc-800 border border-zinc-700 text-[10px] py-1.5 px-1 rounded text-zinc-300">QUEEN</button>
+                        <button onclick="switchRole('ACE')" class="role-btn bg-zinc-800 border border-zinc-700 text-[10px] py-1.5 px-1 rounded text-zinc-300">ACE</button>
+                        <button onclick="switchRole('JOKER')" class="role-btn bg-zinc-800 border border-zinc-700 text-[10px] py-1.5 px-1 rounded text-zinc-300">JOKER</button>
+                        <button onclick="switchRole('X')" class="role-btn bg-zinc-800 border border-zinc-700 text-[10px] py-1.5 px-1 rounded text-zinc-300">X</button>
+                    </div>
+                </div>
+
+                <!-- README Code Snippet Box -->
+                <div class="hud-glass p-3 rounded-xl border border-zinc-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-zinc-300"><i class="fa-solid fa-file-code text-pink-400 mr-1"></i> README.md (Copy/Paste)</span>
+                        <button onclick="copyReadme()" class="text-[10px] bg-zinc-800 hover:bg-zinc-700 px-2.5 py-1 rounded">Copy</button>
+                    </div>
+                    <textarea id="readme-text" class="w-full bg-black/80 font-mono text-[10px] text-green-400 p-2 rounded border border-zinc-800 h-20 resize-none outline-none focus:border-cyan-500">
+<!-- Cyber Wonderland Profile -->
+<sys> Status: Online / Wunderland AI </sys>
+<user> ALLiSTAR & Kaninchen </user>
+<mood> Verrückt & Magisch ✨ </mood>
+                    </textarea>
+                </div>
+
+                <!-- Honeycomb Menu -->
+                <div>
+                    <h3 class="text-xs font-bold text-zinc-400 mb-3 ml-1">Wunderland Module</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="hex-cell" onclick="showToast('Sticker Library geöffnet')">
+                            <i class="fa-solid fa-face-smile text-xl text-yellow-400 mb-1"></i>
+                            <span class="text-[8px] font-bold">Stickers</span>
+                        </div>
+                        <div class="hex-cell" onclick="toggleHud('music')">
+                            <i class="fa-solid fa-compact-disc text-xl text-cyan-400 mb-1 animate-spin-slow"></i>
+                            <span class="text-[8px] font-bold">Audio Vault</span>
+                        </div>
+                        <div class="hex-cell border border-pink-500/50" onclick="openAlbums()">
+                            <i class="fa-solid fa-folder-open text-xl text-pink-400 mb-1"></i>
+                            <span class="text-[8px] font-bold">My Vault</span>
+                        </div>
+                        <div class="hex-cell" onclick="showToast('Private Notizen aktiv')">
+                            <i class="fa-solid fa-lock text-xl text-zinc-400 mb-1"></i>
+                            <span class="text-[8px] font-bold">Notes</span>
+                        </div>
+                        <div class="hex-cell" onclick="changeUsernamePrompt()">
+                            <i class="fa-solid fa-user-pen text-xl text-purple-400 mb-1"></i>
+                            <span class="text-[8px] font-bold">Name</span>
+                        </div>
+                        <div class="hex-cell" onclick="showToast('Holo Rainbow Shader Active')">
+                            <i class="fa-solid fa-rainbow text-xl text-green-400 mb-1"></i>
+                            <span class="text-[8px] font-bold">Holo Glow</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Private Notes -->
+                <div class="hud-glass p-3 rounded-xl border border-yellow-500/30">
+                    <span class="text-xs font-bold text-yellow-400 mb-2 block"><i class="fa-solid fa-user-secret mr-1"></i> Private Wunderland Notizen</span>
+                    <textarea placeholder="Nur für dich und dein Team sichtbar..." class="w-full bg-transparent text-xs text-zinc-300 h-14 resize-none outline-none">Dev El Oper hat Master-Kontrolle über alle Feeds und KINGS, QUEENS, ACE, JOKER, X.</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network HUD -->
+    <div id="hud-network" class="fixed top-20 right-4 z-50 w-64 hud-glass border border-purple-500/40 rounded-2xl p-3 hidden anim-hud pointer-events-auto">
+        <div class="flex justify-between items-center mb-3 border-b border-white/10 pb-2">
+            <span class="text-xs font-bold text-purple-300"><i class="fa-solid fa-satellite-dish mr-1"></i> Cyber Network</span>
+            <button onclick="toggleHud('network')" class="text-zinc-400"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="relative">
+                        <div class="w-8 h-8 rounded-full border border-cyan-500 bg-zinc-800 flex items-center justify-center text-xs font-bold text-cyan-400">D</div>
+                        <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></div>
+                    </div>
+                    <span class="text-xs font-bold">Dev El Oper</span>
+                </div>
+                <span class="text-[9px] bg-purple-600/50 px-2 py-0.5 rounded text-purple-200">Admin</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="relative">
+                        <div class="w-8 h-8 rounded-full border border-pink-500 bg-zinc-800 flex items-center justify-center text-xs font-bold text-pink-400">K</div>
+                        <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-black"></div>
+                    </div>
+                    <span class="text-xs font-bold">Kaninchen</span>
+                </div>
+                <span class="text-[9px] bg-pink-600/50 px-2 py-0.5 rounded text-pink-200">Master</span>
+            </div>
+            <button onclick="addNewUserPrompt()" class="w-full mt-2 bg-black/40 hover:bg-zinc-800 p-2 rounded-xl text-xs border border-dashed border-zinc-600 text-cyan-400 transition">
+                <i class="fa-solid fa-user-plus mr-1"></i> Spieler hinzufügen
+            </button>
+        </div>
+    </div>
+
+    <!-- Music Vault / Audio Selector HUD -->
+    <div id="hud-music" class="fixed bottom-20 right-4 z-50 w-72 hud-glass border border-pink-500/40 rounded-2xl p-3 hidden anim-hud pointer-events-auto">
+        <div class="flex justify-between items-center mb-3 border-b border-white/10 pb-2">
+            <span class="text-xs font-bold text-pink-300"><i class="fa-solid fa-compact-disc mr-1"></i> Audio & Music Vault</span>
+            <button onclick="toggleHud('music')" class="text-zinc-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+            <button onclick="selectMusic('Matrix Awakening Theme', 'https://actions.google.com/sounds/v1/science_fiction/cyberpunk_drone.ogg')" class="w-full flex items-center p-2 rounded-lg hover:bg-zinc-800 text-left transition group">
+                <i class="fa-solid fa-play text-cyan-400 mr-2 text-[10px] group-hover:text-pink-400"></i>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold">Matrix Cyber Drone</span>
+                    <span class="text-[9px] text-zinc-500">Collected by @Dev</span>
+                </div>
+            </button>
+            <button onclick="selectMusic('Alice Wunderland Synthwave', 'https://actions.google.com/sounds/v1/ambiences/futuristic_city.ogg')" class="w-full flex items-center p-2 rounded-lg hover:bg-zinc-800 text-left transition group">
+                <i class="fa-solid fa-play text-cyan-400 mr-2 text-[10px] group-hover:text-pink-400"></i>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold">Wunderland Synthwave</span>
+                    <span class="text-[9px] text-zinc-500">Your Library</span>
+                </div>
+            </button>
+            <button onclick="selectMusic('Sisters Project 42 Anthem', 'https://actions.google.com/sounds/v1/science_fiction/robotic_bleep.ogg')" class="w-full flex items-center p-2 rounded-lg hover:bg-zinc-800 text-left transition group">
+                <i class="fa-solid fa-play text-cyan-400 mr-2 text-[10px] group-hover:text-pink-400"></i>
+                <div class="flex flex-col">
+                    <span class="text-xs font-bold">SP42 Anthem</span>
+                    <span class="text-[9px] text-zinc-500">Kaninchen Mix</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Comments Drawer HUD -->
+    <div id="hud-comments" class="fixed inset-x-0 bottom-0 z-50 transform translate-y-full transition-transform duration-300 ease-out bg-[#0a0514]/95 backdrop-blur-xl rounded-t-3xl border-t border-cyan-500/30 max-h-[70dvh] flex flex-col shadow-[0_-10px_40px_rgba(6,182,212,0.15)] pointer-events-auto">
+        <div class="flex justify-between items-center p-4 border-b border-zinc-800/50">
+            <h3 class="text-sm font-bold font-cyber text-cyan-400"><i class="fa-regular fa-comments mr-1"></i> Data Log & Vault Comments</h3>
+            <button onclick="closeComments()" class="text-zinc-400 hover:text-pink-400 p-2 transition">
+                <i class="fa-solid fa-chevron-down text-lg"></i>
+            </button>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-4 flex-1 no-scrollbar" id="comments-container">
+            <div class="flex space-x-3 text-sm">
+                <div class="w-8 h-8 rounded-full border border-purple-500 bg-zinc-900 flex items-center justify-center font-bold text-xs font-cyber text-purple-400">D</div>
+                <div>
+                    <span class="font-bold text-[10px] font-cyber text-cyan-300">Dev El Oper</span>
+                    <p class="text-zinc-200 mt-0.5 text-xs">Full access granted to Wunderland feed! 🎩✨</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-3 border-t border-zinc-800/50 bg-[#030014] flex items-center space-x-2 pb-safe">
+            <button onclick="toggleVaultStickers()" class="bg-zinc-800 hover:bg-zinc-700 p-2.5 rounded-full text-xs text-yellow-400"><i class="fa-solid fa-stamp"></i></button>
+            <input type="text" id="comment-input" placeholder="Ins Logbuch schreiben..." class="bg-zinc-900 border border-zinc-700 text-xs px-4 py-2.5 rounded-full flex-1 focus:outline-none focus:border-cyan-500 text-white font-mono">
+            <button onclick="sendComment()" class="bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 rounded-full text-xs font-bold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:opacity-90">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Core -->
+    <script>
+        let mediaFeed = [
+            { id: 1, title: "HTML Wunderland Dashboard Widget", url: "https://example.com", type: "html", album: "System Files", author: "Dev El Oper", likes: 142, isLiked: false, sound: "Matrix Cyber Drone", comments: 12 },
+            { id: 2, title: "Cyber Rabbit 3D Hologram", url: "https://modelviewer.dev/shared-assets/models/Astronaut.glb", type: "glb", album: "3D Archiven", author: "Kaninchen", likes: 999, isLiked: false, sound: "Wunderland Synthwave", comments: 42 },
+            { id: 3, title: "Sisters Project 42 Cyber Rave", url: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-dancing-in-a-room-41604-large.mp4", type: "video", album: "Beats", author: "ALLiSTAR", likes: 1337, isLiked: false, sound: "SP42 Anthem", comments: 88 },
+            { id: 4, title: "Wunderland Lore & Rules PDF", url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", type: "pdf", album: "System Files", author: "Dev El Oper", likes: 320, isLiked: false, sound: "Matrix Cyber Drone", comments: 5 }
+        ];
+
+        let globalMuted = true;
+        let activeHud = null;
+        let currentRole = "ALLiSTAR";
+        let pendingLocalFileUrl = null;
+        let slideshowActive = false;
+        let slideshowTimer = null;
+        let currentAudio = null;
+
+        // HUD Toggle Logic
+        window.toggleHud = (hudId) => {
+            const hud = document.getElementById(`hud-${hudId}`);
+            if(activeHud && activeHud !== hudId) {
+                const prev = document.getElementById(`hud-${activeHud}`);
+                if(prev) prev.classList.add('hidden');
+            }
+            if(hud.classList.contains('hidden')) {
+                hud.classList.remove('hidden');
+                activeHud = hudId;
+            } else {
+                hud.classList.add('hidden');
+                activeHud = null;
+            }
+        };
+
+        // Render Main Feed
+        function renderFeed(filterAlbum = null) {
+            const container = document.getElementById('video-feed');
+            container.innerHTML = '';
+            
+            let data = filterAlbum ? mediaFeed.filter(m => m.album === filterAlbum) : mediaFeed;
+            if(data.length === 0) data = mediaFeed;
+
+            data.forEach((item) => {
+                const el = document.createElement('div');
+                el.className = 'snap-item flex items-center justify-center bg-black relative';
+                
+                let mediaHtml = '';
+                if(item.type === 'html') {
+                    mediaHtml = `<div class="w-full h-full bg-zinc-900 flex items-center justify-center pt-16 pb-32 px-4"><iframe src="${item.url}" class="w-full h-full rounded-xl border border-pink-500/30 bg-white" sandbox="allow-scripts allow-same-origin"></iframe></div>`;
+                } else if(item.type === 'video') {
+                    mediaHtml = `<video class="w-full h-full object-cover" src="${item.url}" loop playsinline muted></video>`;
+                } else if(item.type === 'glb') {
+                    // Safe GLB model viewer rendering with robust binary / fallback check
+                    const safeGlbUrl = (item.url && !item.url.includes('example.com') && !item.url.startsWith('blob:')) ? item.url : 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
+                    mediaHtml = `<model-viewer src="${safeGlbUrl}" auto-rotate camera-controls class="w-full h-full" background-color="#030014" shadow-intensity="1" onerror="this.outerHTML='<div class=\\'w-full h-full flex flex-col items-center justify-center bg-zinc-900 text-cyan-400 p-6 text-center\\'><i class=\\'fa-solid fa-cube text-5xl mb-3\\'></i><p class=\\'text-xs\\'>3D Voxel Preview (Safe Fallback)</p></div>'"></model-viewer>`;
+                } else if(item.type === 'pdf') {
+                    mediaHtml = `<div class="w-full h-full flex flex-col items-center justify-center bg-zinc-900 p-6 text-center pt-20"><i class="fa-solid fa-file-pdf text-6xl text-red-500 mb-4 animate-bounce"></i><h3 class="text-lg font-bold text-white mb-2">${item.title}</h3><a href="${item.url}" target="_blank" class="bg-pink-600 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-lg">PDF in neuem Tab öffnen</a></div>`;
+                } else {
+                    mediaHtml = `<div class="w-full h-full flex items-center justify-center bg-zinc-900 pt-16 pb-32 px-4"><img src="${item.url}" class="max-w-full max-h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/600x800/1a1a2e/ec4899?text=Wunderland+Media'"></div>`;
+                }
+
+                el.innerHTML = `
+                    ${mediaHtml}
+                    <div class="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none"></div>
+                    
+                    <div class="absolute right-3 bottom-safe z-20 flex flex-col items-center pb-6">
+                        <div class="w-10 h-10 rounded-full border border-pink-500 bg-zinc-900 flex items-center justify-center text-xs font-bold text-cyan-300 mb-4">${item.author[0]}</div>
+                        
+                        <button onclick="toggleLike(this, ${item.id})" class="flex flex-col items-center group">
+                            <div class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-lg ${item.isLiked?'text-pink-500':'text-white'}"><i class="fa-${item.isLiked?'solid':'regular'} fa-heart"></i></div>
+                            <span class="text-[10px] font-cyber text-pink-300 mt-1">${item.likes}</span>
+                        </button>
+                        
+                        <button onclick="toggleHud('action')" class="flex flex-col items-center group mt-3">
+                            <div class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-lg text-white hover:bg-white/20"><i class="fa-solid fa-plus"></i></div>
+                        </button>
+
+                        <button onclick="openComments(${item.id})" class="flex flex-col items-center group mt-3">
+                            <div class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-lg text-white hover:bg-white/20"><i class="fa-solid fa-comment-dots"></i></div>
+                            <span class="text-[10px] font-cyber text-pink-300 mt-1">${item.comments || 0}</span>
+                        </button>
+
+                        <!-- Schallplatte / Music Vault Button -->
+                        <div onclick="toggleHud('music')" class="w-10 h-10 rounded-full bg-black/60 border-2 border-pink-500 flex items-center justify-center animate-spin-slow shadow-[0_0_15px_rgba(236,72,153,0.5)] mt-6 cursor-pointer hover:scale-110 transition-transform">
+                            <div class="w-3 h-3 rounded-full bg-cyan-400 flex items-center justify-center">
+                                <i class="fa-solid fa-music text-[6px] text-black"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="absolute left-4 bottom-safe z-20 pointer-events-auto pb-6 pr-20">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-sm font-bold font-cyber text-cyan-300">@${item.author}</span>
+                            <span class="bg-pink-600/70 text-[9px] px-2 py-0.5 rounded border border-pink-400">#${item.album}</span>
+                        </div>
+                        <p class="text-xs text-zinc-200 line-clamp-2">${item.title}</p>
+                    </div>
+                `;
+
+                if(item.type === 'video') {
+                    const vid = el.querySelector('video');
+                    vid.onclick = () => vid.paused ? safePlay(vid) : vid.pause();
+                }
+
+                container.appendChild(el);
+            });
+            setupObserver();
+        }
+
+        async function safePlay(videoEl) {
+            try { videoEl.muted = globalMuted; await videoEl.play(); } 
+            catch (err) { try { videoEl.muted = true; await videoEl.play(); } catch(e){} }
+        }
+
+        function setupObserver() {
+            const obs = new IntersectionObserver(entries => {
+                entries.forEach(e => {
+                    const vid = e.target.querySelector('video');
+                    if(e.isIntersecting) { if(vid) safePlay(vid); } 
+                    else { if(vid){ vid.pause(); vid.currentTime = 0; } }
+                });
+            }, {threshold: 0.6});
+            document.querySelectorAll('.snap-item').forEach(i => obs.observe(i));
+        }
+
+        window.toggleLike = (btn, id) => {
+            const item = mediaFeed.find(m => m.id === id);
+            if(item) {
+                item.isLiked = !item.isLiked;
+                item.likes += item.isLiked ? 1 : -1;
+                const iconContainer = btn.querySelector('div');
+                const icon = btn.querySelector('i');
+                const countSpan = btn.querySelector('span');
+                
+                if (item.isLiked) {
+                    iconContainer.classList.replace('text-white', 'text-pink-500');
+                    icon.classList.replace('fa-regular', 'fa-solid');
+                } else {
+                    iconContainer.classList.replace('text-pink-500', 'text-white');
+                    icon.classList.replace('fa-solid', 'fa-regular');
+                }
+                countSpan.innerText = item.likes;
+            }
+        };
+
+        // Local File Upload
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('up-file');
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-pink-500'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-pink-500'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-pink-500');
+            if(e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                handleLocalFile({ target: fileInput });
+            }
+        });
+
+        window.handleLocalFile = (event) => {
+            const file = event.target.files[0];
+            if(file) {
+                pendingLocalFileUrl = URL.createObjectURL(file);
+                document.getElementById('file-name-display').innerText = file.name;
+                document.getElementById('up-url').value = pendingLocalFileUrl;
+                document.getElementById('up-title').value = file.name.split('.')[0];
+                showToast("Lokale Datei geladen: " + file.name);
+            }
+        };
+
+        window.saveUpload = () => {
+            const url = document.getElementById('up-url').value;
+            const title = document.getElementById('up-title').value || "Wunderland Upload";
+            const tag = document.getElementById('up-tag').value || "Vault";
+            
+            if(!url) return showToast("Bitte URL eingeben oder Datei hochladen!");
+            
+            let type = 'image';
+            if(url.endsWith('.mp4') || (fileInput.files[0] && fileInput.files[0].type.includes('video'))) type = 'video';
+            else if(url.endsWith('.glb') || url.includes('blob') || url.includes('modelviewer')) type = 'glb';
+            else if(url.endsWith('.mp3') || url.endsWith('.m4a')) type = 'audio';
+            else if(url.endsWith('.pdf')) type = 'pdf';
+            else if(url.includes('html') || url.includes('example')) type = 'html';
+
+            mediaFeed.unshift({
+                id: Date.now(), title: title, url: url, type: type,
+                album: tag, author: currentRole, likes: 1, isLiked: false, sound: "Custom Vault Audio", comments: 1
+            });
+            
+            renderFeed();
+            toggleHud('upload');
+            showToast("Erfolgreich in den Wunderland-Vault gesendet!");
+            document.getElementById('up-url').value = '';
+            document.getElementById('file-name-display').innerText = "Datei hierher ziehen oder klicken...";
+            pendingLocalFileUrl = null;
+        };
+
+        window.actionSticker = () => { showToast("Als Sticker im Vault gespeichert!"); toggleHud('action'); }
+        window.actionDownload = () => { showToast("Download initialisiert..."); toggleHud('action'); }
+        window.actionCopy = () => { document.execCommand('copy'); showToast("Link in Zwischenablage!"); toggleHud('action'); }
+        window.actionPlaylist = () => { showToast("Zum Album hinzugefügt!"); toggleHud('action'); }
+
+        window.openComments = () => {
+            if(activeHud) toggleHud(activeHud);
+            document.getElementById('hud-comments').classList.remove('translate-y-full');
+        };
+        window.closeComments = () => {
+            document.getElementById('hud-comments').classList.add('translate-y-full');
+        };
+        window.sendComment = () => {
+            const input = document.getElementById('comment-input');
+            if(!input.value.trim()) return;
+            const container = document.getElementById('comments-container');
+            container.innerHTML += `
+                <div class="flex space-x-3 text-sm">
+                    <div class="w-8 h-8 rounded-full border border-cyan-500 bg-zinc-900 flex items-center justify-center font-bold text-xs font-cyber text-cyan-400">${currentRole[0]}</div>
+                    <div>
+                        <span class="font-bold text-[10px] font-cyber text-cyan-300">${currentRole}</span>
+                        <p class="text-zinc-200 mt-0.5 text-xs">${input.value}</p>
+                    </div>
+                </div>
+            `;
+            input.value = '';
+            showToast("Kommentar ins Logbuch eingetragen");
+        };
+        window.toggleVaultStickers = () => { showToast("Vault-Sticker Menü aktiv!"); }
+
+        window.selectMusic = (trackName, audioUrl) => {
+            showToast("Audio gewechselt zu: " + trackName);
+            toggleHud('music');
+            if(currentAudio) currentAudio.pause();
+            currentAudio = new Audio(audioUrl);
+            currentAudio.loop = true;
+            if(!globalMuted) currentAudio.play().catch(e => {});
+        };
+
+        // Profile Unfold
+        const profileHud = document.getElementById('hud-profile');
+        const cubeState = document.getElementById('profile-cube-state');
+        const hexState = document.getElementById('profile-hex-state');
+        const cube = document.getElementById('profile-cube');
+
+        window.openProfile = () => {
+            if(activeHud) toggleHud(activeHud);
+            cubeState.style.display = 'flex';
+            hexState.style.display = 'none';
+            cube.classList.remove('unfolded');
+            cube.classList.add('spinning');
+            profileHud.classList.remove('hidden');
+            profileHud.classList.add('flex');
+        };
+        window.closeProfile = () => { profileHud.classList.add('hidden'); profileHud.classList.remove('flex'); };
+        
+        window.unfoldProfile = () => {
+            cube.classList.remove('spinning');
+            cube.classList.add('unfolded');
+            setTimeout(() => {
+                cubeState.style.display = 'none';
+                hexState.style.display = 'flex';
+                showToast("Goldener Wunderland-Voxel entfaltet.");
+            }, 600);
+        };
+        window.copyReadme = () => { showToast("README Code kopiert!"); }
+
+        window.switchRole = (role) => {
+            currentRole = role;
+            document.getElementById('header-username').innerText = role;
+            document.getElementById('user-avatar-initial').innerText = role[0];
+            document.getElementById('profile-display-name').innerText = role;
+            document.getElementById('cube-profile-title').innerText = '@' + role;
+            document.getElementById('current-upload-role').innerText = role;
+            showToast("Identität gewechselt zu: " + role);
+        };
+
+        window.changeAvatarPrompt = () => {
+            const name = prompt("Neuen Avatar-Emoji eingeben:", "🦄");
+            if(name) {
+                document.getElementById('profile-main-icon').outerHTML = `<span class="text-3xl" id="profile-main-icon">${name}</span>`;
+                showToast("Profilbild aktualisiert!");
+            }
+        };
+
+        window.changeUsernamePrompt = () => {
+            const name = prompt("Neuen Benutzernamen eingeben:", currentRole);
+            if(name) switchRole(name);
+        };
+
+        window.addNewUserPrompt = () => {
+            const name = prompt("Neuen Spieler hinzufügen:");
+            if(name) showToast("Neuer Benutzer " + name + " eingeladen!");
+        };
+
+        // Albums HUD
+        const albumsHud = document.getElementById('hud-albums');
+        window.openAlbums = () => {
+            if(activeHud) toggleHud(activeHud);
+            const albums = [...new Set(mediaFeed.map(m => m.album))];
+            const grid = document.getElementById('album-grid');
+            grid.innerHTML = '';
+            
+            const icons = ['fa-folder', 'fa-cube', 'fa-music', 'fa-video', 'fa-code'];
+            albums.forEach((album, idx) => {
+                const icon = icons[idx % icons.length];
+                grid.innerHTML += `
+                    <div class="flex flex-col items-center cursor-pointer" onclick="loadAlbum('${album}')">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-800 to-black border border-pink-500/40 shadow-lg flex items-center justify-center active:scale-95 transition hover:border-cyan-400">
+                            <i class="fa-solid ${icon} text-2xl text-cyan-400 drop-shadow-md"></i>
+                        </div>
+                        <span class="text-[10px] text-zinc-300 mt-1.5 truncate w-full text-center font-bold">${album}</span>
+                    </div>
+                `;
+            });
+            albumsHud.classList.remove('hidden');
+            albumsHud.classList.add('flex');
+        };
+        window.closeAlbums = () => { albumsHud.classList.add('hidden'); albumsHud.classList.remove('flex'); };
+        
+        window.loadAlbum = (album) => {
+            closeAlbums();
+            renderFeed(album);
+            document.getElementById('dev-comment-text').innerText = `Entwickler-Kommentar für Album [${album}]: Dieses Vault enthält Cyber-Medien.`;
+            showToast(`Album: ${album} geladen`);
+        };
+
+        window.addNewAlbumPrompt = () => {
+            const albumName = prompt("Neues Album / Tag erstellen:");
+            if(albumName) { showToast("Album '" + albumName + "' erstellt!"); openAlbums(); }
+        };
+
+        window.startSlideshow = () => {
+            if(slideshowActive) {
+                clearInterval(slideshowTimer);
+                slideshowActive = false;
+                showToast("Autopilot gestoppt");
+            } else {
+                slideshowActive = true;
+                showToast("Autopilot gestartet! Wechselt alle 4s.");
+                closeAlbums();
+                let index = 0;
+                const items = document.querySelectorAll('.snap-item');
+                if(items.length > 0) {
+                    slideshowTimer = setInterval(() => {
+                        index = (index + 1) % items.length;
+                        items[index].scrollIntoView({ behavior: 'smooth' });
+                    }, 4000);
+                }
+            }
+        };
+
+        // Audio Mute
+        const muteBtn = document.getElementById('mute-global-btn');
+        muteBtn.onclick = () => {
+            globalMuted = !globalMuted;
+            document.getElementById('global-mute-icon').className = globalMuted ? "fa-solid fa-volume-xmark text-pink-400" : "fa-solid fa-volume-high text-cyan-300";
+            document.querySelectorAll('video').forEach(v => v.muted = globalMuted);
+            if(currentAudio) {
+                if(globalMuted) currentAudio.pause();
+                else currentAudio.play().catch(e => {});
+            }
+            showToast(globalMuted ? "Audio Muted" : "Audio Active");
+        };
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'fixed top-[max(4rem,env(safe-area-inset-top))] left-1/2 transform -translate-x-1/2 bg-black/85 backdrop-blur-md border border-cyan-400 text-cyan-300 text-xs px-4 py-2 rounded-full z-[100] shadow-[0_0_15px_rgba(6,182,212,0.4)] font-cyber text-center min-w-[200px]';
+            t.innerText = msg; document.body.appendChild(t);
+            setTimeout(() => t.remove(), 2500);
+        }
+
+        window.onload = () => renderFeed();
+    </script>
+</body>
+</html>
