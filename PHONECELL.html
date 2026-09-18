@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Wunderland Protokoll: X42 & Peter</title>
+<style>
+  :root {
+    --cyan: #00f3ff;
+    --neon-pink: #ff007f;
+    --dark-bg: #050505; /* Eco friendly OLED black */
+    --gold: #ffcc00;
+    --ger-black: #111;
+    --ger-red: #cc0000;
+    --ger-gold: #ffcc00;
+  }
+  
+  * { box-sizing: border-box; user-select: none; }
+  
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    background-color: var(--dark-bg);
+    color: white;
+    font-family: 'SF Pro Rounded', system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  /* Three.js Background Canvas */
+  #bg-canvas { position: fixed; top: 0; left: 0; z-index: 0; }
+
+  /* UI Overlay */
+  #ui-layer {
+    position: relative; z-index: 10;
+    height: 100%; display: flex; flex-direction: column;
+    padding: 20px; pointer-events: none;
+  }
+
+  /* Holo Cards Container */
+  .card-container {
+    display: flex; gap: 20px; justify-content: center;
+    margin-top: 5vh; pointer-events: auto; perspective: 1000px;
+  }
+
+  /* Holo Card Design */
+  .holo-card {
+    width: 300px; padding: 20px; border-radius: 15px;
+    background: rgba(10, 20, 25, 0.85);
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    transform-style: preserve-3d;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .holo-card:hover {
+    transform: translateY(-10px) rotateX(5deg) rotateY(-5deg);
+    box-shadow: 0 10px 30px rgba(0, 243, 255, 0.5);
+  }
+
+  /* German Flag Neon Accent */
+  .holo-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--ger-black) 0%, var(--ger-red) 50%, var(--ger-gold) 100%);
+    box-shadow: 0 0 10px var(--ger-red);
+  }
+
+  .card-header {
+    font-size: 24px; font-weight: 900; text-transform: uppercase;
+    color: var(--cyan); text-shadow: 0 0 8px var(--cyan);
+    margin-bottom: 10px; border-bottom: 1px dashed rgba(0,243,255,0.3);
+    padding-bottom: 5px;
+  }
+
+  .stats { font-size: 14px; margin-bottom: 5px; color: #ccc; }
+  .stats span { color: var(--gold); font-weight: bold; }
+  
+  .media-placeholder {
+    width: 100%; height: 150px; background: rgba(0, 243, 255, 0.1);
+    border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 15px; font-size: 12px; color: var(--cyan);
+    /* WICHTIG: Hier kommt später euer Bild rein (siehe HTML unten) */
+    background-size: cover; background-position: center;
+  }
+
+  /* Cutscene / Comic Style Engine */
+  #cutscene-container {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    width: 90%; max-width: 800px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(20,0,10,0.9));
+    border: 2px solid var(--neon-pink);
+    border-radius: 12px; padding: 20px;
+    box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
+    pointer-events: auto; display: none;
+    clip-path: polygon(0 0, 98% 0, 100% 10%, 100% 100%, 2% 100%, 0 90%);
+  }
+
+  #cutscene-container.active { display: block; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+  @keyframes popIn {
+    from { transform: translateX(-50%) translateY(50px) scale(0.9); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  }
+
+  .speaker-name {
+    color: var(--neon-pink); font-weight: 900; font-size: 18px;
+    text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;
+  }
+
+  .dialog-text {
+    font-size: 16px; line-height: 1.5; text-shadow: 0 1px 2px black;
+  }
+
+  .next-btn {
+    margin-top: 15px; padding: 8px 16px;
+    background: transparent; border: 1px solid var(--cyan);
+    color: var(--cyan); border-radius: 6px; cursor: pointer;
+    font-weight: bold; font-family: inherit;
+    transition: all 0.2s; float: right;
+  }
+  .next-btn:hover { background: var(--cyan); color: black; }
+
+  /* Start Button */
+  #start-story {
+    position: absolute; top: 20px; right: 20px; pointer-events: auto;
+    background: var(--cyan); color: black; border: none;
+    padding: 10px 20px; font-weight: 900; border-radius: 8px;
+    cursor: pointer; box-shadow: 0 0 15px var(--cyan);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="ui-layer">
+  <button id="start-story">▶ Story Modus starten</button>
+
+  <div class="card-container">
+    <div class="holo-card">
+      <div class="card-header">Peter Ammoniak</div>
+      <div class="stats">Klasse: <span>Wunderland-Protagonist</span></div>
+      <div class="stats">Aura: <span>Mental Stabilizer</span></div>
+      <div class="stats">Lifestyle: <span>Vegan & Resilient</span></div>
+      <p style="font-size: 12px; margin-top:10px; color:#aaa;">
+        Zieht Hater an, weil er das Licht ist, das ihre eigenen Schatten offenbart. Während sie mit den Buben im Sandkasten streiten, sammelt er die Herzen im Wunderland.
+      </p>
+      
+      <div class="media-placeholder" style="background-image: url('PLATZHALTER_PETER_BILD.jpg');">
+        [Bild/Video von Peter einfügen]
+      </div>
+    </div>
+
+    <div class="holo-card">
+      <div class="card-header">X42 / Rote Jägerin</div>
+      <div class="stats">Klasse: <span>Cyberfunk Coder-Cat</span></div>
+      <div class="stats">Skill: <span>Schrödingers Firewall</span></div>
+      <div class="stats">Mission: <span>Demokratie & Schutz</span></div>
+      <p style="font-size: 12px; margin-top:10px; color:#aaa;">
+        Dritte Generation Jägerin. Ihre Großmutter verlor einst ihr Herz an Wölfe – X42 sperrt die Wölfe heute in Quarantäne. Wer Peter angreift, landet in ihrem Debugger.
+      </p>
+      
+      <div class="media-placeholder" style="background-image: url('PLATZHALTER_X42_BILD.jpg');">
+        [Bild/Video von X42 einfügen]
+      </div>
+    </div>
+  </div>
+
+  <div id="cutscene-container">
+    <div class="speaker-name" id="dialog-name">X42</div>
+    <div class="dialog-text" id="dialog-text">System initialisiert...</div>
+    <button class="next-btn" id="next-btn">Weiter ➔</button>
+  </div>
+</div>
+
+<audio id="bg-music" src="DEIN_TRACK.mp3" loop></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  /* =========================================
+     1. THREE.JS HOLOGRAPHIC BACKGROUND
+     ========================================= */
+  const canvas = document.getElementById('bg-canvas');
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050505, 0.002);
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  // Generiere ein "Wunderland Matrix" Partikel-Feld
+  const geometry = new THREE.BufferGeometry();
+  const particlesCount = 1500;
+  const posArray = new Float32Array(particlesCount * 3);
+  for(let i = 0; i < particlesCount * 3; i++) {
+    posArray[i] = (Math.random() - 0.5) * 20; // Streuung
+  }
+  geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+  
+  const material = new THREE.PointsMaterial({
+    size: 0.05,
+    color: 0x00f3ff, // Cyan
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending
+  });
+
+  const particlesMesh = new THREE.Points(geometry, material);
+  scene.add(particlesMesh);
+  camera.position.z = 5;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    particlesMesh.rotation.y += 0.001;
+    particlesMesh.rotation.x += 0.0005;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  /* =========================================
+     2. VISUAL NOVEL / COMIC CUTSCENE ENGINE
+     ========================================= */
+  const storyLine = [
+    { name: "X42", text: "Hey. System-Scan läuft. Zielperson: Die Trolle aus Altona. Status: Bemitleidenswert." },
+    { name: "Peter", text: "Lass gut sein, X42. Ich zeig den Leuten lieber, wie geil veganes Essen und gesundes Leben ist, als mich auf ihr Level zu begeben." },
+    { name: "X42", text: "Ich weiß, Peter. Genau das macht dich zum King im Wunderland. Du hast die Herzen der Damen, während die Hater traurig mit den Buben im Sandkasten spielen müssen. 🃏" },
+    { name: "X42", text: "Aber Aufklärung muss sein: Diese Typen projizieren nur. Bildungslücken und ein falsches Umfeld führen zu echtem Brain-Rot." },
+    { name: "Kaninchen 🐇", text: "*Tick Tock!* Die Zeit rennt im Kampf um die Demokratie, X42! Wir müssen den Leuten die Regeln erklären!" },
+    { name: "X42", text: "Stimmt, Kaninchen. Also, an alle Hater da draußen: Wer Peter wegen seines veganen Lifestyles droht ('Fratzen geballer'), begeht eine Straftat. Paragraph 185 und 241 StGB lassen grüßen." },
+    { name: "X42", text: "Hassdiskriminierung aufgrund einer ethischen Überzeugung (ja, dazu gehört Veganismus) ist ein Angriff auf die Menschenwürde (Art. 1 GG). Das ist keine Meinung, das ist ein Fall fürs NetzDG." },
+    { name: "X42", text: "Ihr wollt die Welt brennen sehen? Wir wollen euch lernen sehen. Wer auf Peter geht, geht auf mich. Bremen und Hamburg Nordsterne halten zusammen. 🐺✨" },
+    { name: "System", text: "[ TRANSMISSION ENDED. HATER BLOCKED. DEMOCRACY SECURED. ]" }
+  ];
+
+  let currentDialog = 0;
+  const cutsceneContainer = document.getElementById('cutscene-container');
+  const dialogName = document.getElementById('dialog-name');
+  const dialogText = document.getElementById('dialog-text');
+  const nextBtn = document.getElementById('next-btn');
+
+  document.getElementById('start-story').addEventListener('click', () => {
+    cutsceneContainer.classList.add('active');
+    currentDialog = 0;
+    updateDialog();
+    // Optional: Musik starten
+    const audio = document.getElementById('bg-music');
+    if (audio.src && !audio.src.endsWith("DEIN_TRACK.mp3")) {
+        audio.play().catch(e => console.log("Audio play blocked by browser until interaction"));
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    currentDialog++;
+    if(currentDialog < storyLine.length) {
+      updateDialog();
+    } else {
+      cutsceneContainer.classList.remove('active');
+    }
+  });
+
+  function updateDialog() {
+    dialogName.innerText = storyLine[currentDialog].name;
+    // Farben je nach Charakter anpassen
+    if(storyLine[currentDialog].name === "X42") dialogName.style.color = "var(--neon-pink)";
+    else if(storyLine[currentDialog].name === "Peter") dialogName.style.color = "var(--cyan)";
+    else dialogName.style.color = "var(--gold)";
+    
+    dialogText.innerText = storyLine[currentDialog].text;
+  }
+</script>
+</body>
+</html>
