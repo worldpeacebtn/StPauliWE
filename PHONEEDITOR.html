@@ -1,0 +1,1514 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050505">
+<title>Wunderland · RPG Editor</title>
+<style>
+:root{
+  --cyan:#00f3ff;
+  --pink:#ff007f;
+  --gold:#ffcc00;
+  --bg:#050505;
+  --panel:rgba(10,20,25,.85);
+  --panel2:rgba(20,10,25,.85);
+  --border:rgba(0,243,255,.4);
+  --border2:rgba(255,0,127,.4);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden;
+  background:var(--bg);color:#fff;
+  font:500 14px/1.4 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif;
+  overscroll-behavior:none;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+
+#bg{position:fixed;inset:0;z-index:0;display:block}
+
+/* ============== APP SHELL ============== */
+#app{
+  position:fixed;inset:0;z-index:10;
+  display:flex;flex-direction:column;
+  pointer-events:none;
+  padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)) 8px}
+
+#topbar{
+  pointer-events:auto;
+  display:flex;align-items:center;gap:8px;
+  padding:8px 12px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 0 15px rgba(0,243,255,.15),
+    inset 0 0 20px rgba(0,0,0,.6);
+  margin-bottom:6px;
+  position:relative;overflow:hidden}
+#topbar::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#111 0%,#cc0000 50%,#ffcc00 100%);
+  box-shadow:0 0 10px #cc0000}
+#topbar .logo{font-size:16px;filter:drop-shadow(0 0 6px var(--cyan))}
+#topbar .title{flex:1;font-size:12px;font-weight:900;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--cyan);
+  text-shadow:0 0 8px var(--cyan);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#topbar .mchip{
+  padding:5px 10px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(0,243,255,.08);
+  color:var(--cyan);font:inherit;font-size:10px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;font-family:inherit;
+  letter-spacing:.5px}
+#topbar .mchip:active{transform:scale(.94)}
+#topbar .mchip.on{background:var(--cyan);color:#050505;border-color:var(--cyan);
+  box-shadow:0 0 12px var(--cyan)}
+#topbar .mchip.pink{color:var(--pink);border-color:var(--border2)}
+#topbar .mchip.pink.on{background:var(--pink);color:#fff;box-shadow:0 0 12px var(--pink)}
+
+/* ============== MODE TABS ============== */
+#tabs{
+  pointer-events:auto;
+  display:flex;gap:4px;
+  padding:4px;
+  background:rgba(5,10,15,.7);
+  border:1px solid var(--border);
+  border-radius:12px;
+  backdrop-filter:blur(10px);
+  margin-bottom:6px;
+  overflow-x:auto;scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:0;
+  padding:8px 6px;border-radius:8px;
+  border:0;background:transparent;
+  color:rgba(255,255,255,.6);
+  font:inherit;font-size:10px;font-weight:900;
+  letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;touch-action:manipulation;font-family:inherit;
+  white-space:nowrap;
+  transition:all .15s}
+.tab.on{
+  background:linear-gradient(180deg,rgba(0,243,255,.2),rgba(0,243,255,.08));
+  color:var(--cyan);
+  box-shadow:inset 0 0 0 1px var(--cyan),
+    0 0 12px rgba(0,243,255,.3)}
+.tab.on.pink{
+  background:linear-gradient(180deg,rgba(255,0,127,.2),rgba(255,0,127,.08));
+  color:var(--pink);
+  box-shadow:inset 0 0 0 1px var(--pink),
+    0 0 12px rgba(255,0,127,.3)}
+
+/* ============== MAIN VIEW ============== */
+#view{
+  flex:1;position:relative;
+  pointer-events:auto;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--panel);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 0 20px rgba(0,243,255,.1),
+    inset 0 0 30px rgba(0,0,0,.6);
+  overflow:hidden;
+  display:flex;flex-direction:column}
+
+.view{display:none;flex:1;flex-direction:column;overflow:hidden}
+.view.on{display:flex}
+
+/* ============== MAP VIEW ============== */
+#mapWrap{
+  flex:1;display:grid;place-items:center;
+  padding:8px;overflow:hidden;
+  background:
+    radial-gradient(120% 100% at 50% 0%,
+      rgba(0,243,255,.05),transparent 60%)}
+#mapGrid{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  grid-template-rows:repeat(8,1fr);
+  width:min(94vw,520px);
+  aspect-ratio:12/8;
+  gap:1px;
+  background:rgba(0,243,255,.15);
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  touch-action:manipulation;
+  box-shadow:0 0 24px rgba(0,243,255,.25),
+    inset 0 0 30px rgba(0,0,0,.6);
+  position:relative}
+.cell{
+  position:relative;
+  cursor:pointer;
+  display:grid;place-items:center;
+  font-size:16px;
+  line-height:1;
+  transition:filter .1s}
+.cell.wall{background:linear-gradient(155deg,#2a1a30,#100818)}
+.cell.floor{background:linear-gradient(155deg,#1a1a2a,#0a0a15)}
+.cell.grass{background:linear-gradient(155deg,#1a3a20,#0a1a10)}
+.cell.water{background:linear-gradient(155deg,#0a3a5a,#051a2a);
+  animation:waterPulse 4s ease-in-out infinite alternate}
+@keyframes waterPulse{from{filter:brightness(1)}to{filter:brightness(1.2)}}
+.cell.road{background:linear-gradient(155deg,#1a1a1a,#0a0a0a)}
+.cell.road::after{content:"";position:absolute;left:50%;top:0;bottom:0;
+  width:2px;transform:translateX(-50%);
+  background:repeating-linear-gradient(0deg,
+    var(--gold) 0 4px,transparent 4px 10px);opacity:.5}
+.cell.special{background:linear-gradient(155deg,#3a1a30,#1a0a18);
+  box-shadow:inset 0 0 0 1.5px var(--pink)}
+.cell.entity{font-size:20px;
+  filter:drop-shadow(0 0 6px rgba(0,243,255,.7))}
+.cell.player{font-size:26px;
+  filter:drop-shadow(0 0 10px var(--cyan))
+    drop-shadow(0 0 20px rgba(0,243,255,.5));
+  animation:idlePulse 1.6s ease-in-out infinite;z-index:2}
+@keyframes idlePulse{
+  0%,100%{filter:drop-shadow(0 0 8px var(--cyan))}
+  50%{filter:drop-shadow(0 0 16px var(--cyan))
+    drop-shadow(0 0 30px rgba(0,243,255,.6))}}
+.cell:hover{filter:brightness(1.3)}
+.cell:active{filter:brightness(1.6)}
+.cell.highlight{box-shadow:inset 0 0 0 1.5px var(--gold),
+  0 0 12px rgba(255,204,0,.5);z-index:3}
+
+/* ============== PALETTE ============== */
+#palette{
+  flex:0 0 auto;
+  padding:8px;
+  display:flex;gap:5px;
+  overflow-x:auto;scrollbar-width:none;
+  background:rgba(0,0,0,.4);
+  border-top:1px solid var(--border)}
+#palette::-webkit-scrollbar{display:none}
+.pchip{
+  flex:0 0 auto;
+  padding:8px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(0,243,255,.06);
+  color:var(--cyan);
+  font:inherit;font-size:11px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;
+  font-family:inherit;
+  white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;
+  transition:all .12s}
+.pchip:active{transform:scale(.94)}
+.pchip.on{background:var(--cyan);color:#050505;
+  box-shadow:0 0 14px var(--cyan)}
+.pchip.pink{color:var(--pink);border-color:var(--border2);
+  background:rgba(255,0,127,.06)}
+.pchip.pink.on{background:var(--pink);color:#fff;
+  box-shadow:0 0 14px var(--pink)}
+
+/* ============== CHAR / STORY / QUEST LISTS ============== */
+.listWrap{
+  flex:1;overflow-y:auto;
+  padding:10px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px;
+  align-content:start;
+  scrollbar-width:thin}
+.listWrap::-webkit-scrollbar{width:4px}
+.listWrap::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px}
+
+/* Holo card (their style) */
+.hCard{
+  position:relative;
+  padding:12px;
+  border-radius:12px;
+  background:rgba(10,20,25,.85);
+  border:1px solid var(--cyan);
+  box-shadow:0 0 12px rgba(0,243,255,.15),
+    inset 0 0 20px rgba(0,0,0,.6);
+  backdrop-filter:blur(10px);
+  cursor:pointer;
+  touch-action:manipulation;
+  transition:transform .18s,box-shadow .18s;
+  overflow:hidden;
+  display:flex;flex-direction:column;gap:6px}
+.hCard::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,#111 0%,#cc0000 50%,#ffcc00 100%);
+  box-shadow:0 0 8px #cc0000}
+.hCard:active{transform:scale(.97)}
+.hCard:hover{box-shadow:0 0 20px rgba(0,243,255,.4)}
+.hCard.selected{
+  box-shadow:0 0 24px rgba(0,243,255,.6),
+    inset 0 0 0 1.5px var(--cyan)}
+.hCard.pink{border-color:var(--pink);
+  box-shadow:0 0 12px rgba(255,0,127,.2),
+    inset 0 0 20px rgba(0,0,0,.6)}
+.hCard.pink::before{background:linear-gradient(90deg,#ff007f,#ffcc00,#ff007f);
+  box-shadow:0 0 8px var(--pink)}
+.hCard.gold{border-color:var(--gold);
+  box-shadow:0 0 12px rgba(255,204,0,.2),
+    inset 0 0 20px rgba(0,0,0,.6)}
+.hCard.gold::before{background:linear-gradient(90deg,#ffcc00,#ff007f,#ffcc00);
+  box-shadow:0 0 8px var(--gold)}
+.hCard .hEmoji{font-size:38px;text-align:center;line-height:1;
+  filter:drop-shadow(0 0 8px rgba(0,243,255,.5))}
+.hCard .hName{font-size:12px;font-weight:900;
+  color:var(--cyan);text-transform:uppercase;
+  letter-spacing:.5px;
+  text-shadow:0 0 6px rgba(0,243,255,.5);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hCard.pink .hName{color:var(--pink);
+  text-shadow:0 0 6px rgba(255,0,127,.5)}
+.hCard.gold .hName{color:var(--gold);
+  text-shadow:0 0 6px rgba(255,204,0,.5)}
+.hCard .hMeta{font-size:9px;color:rgba(255,255,255,.6);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:.5px}
+.hCard .hStat{font-size:9px;color:#ccc;
+  display:flex;justify-content:space-between}
+.hCard .hStat span{color:var(--gold);font-weight:800}
+.hCard .hBadge{
+  position:absolute;top:8px;right:8px;
+  font-size:8px;font-weight:800;padding:2px 6px;
+  border-radius:6px;
+  background:rgba(0,243,255,.2);color:var(--cyan);
+  letter-spacing:.5px}
+
+/* New card button */
+.newCard{
+  border:1px dashed var(--border);
+  background:rgba(0,243,255,.04);
+  color:var(--cyan);
+  align-items:center;justify-content:center;
+  min-height:140px;
+  font-size:32px;
+  font-weight:200;
+  display:flex}
+.newCard::before{display:none}
+.newCard .newLabel{
+  font-size:10px;font-weight:800;
+  letter-spacing:1px;margin-top:4px;
+  text-transform:uppercase}
+
+/* ============== EDITOR (drawer under view) ============== */
+#editor{
+  position:absolute;left:0;right:0;bottom:0;
+  z-index:20;
+  padding:14px;
+  background:linear-gradient(180deg,
+    rgba(5,10,15,.95),rgba(5,5,10,.98));
+  border-top:1.5px solid var(--cyan);
+  box-shadow:0 -10px 30px rgba(0,243,255,.2);
+  transform:translateY(100%);
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+  max-height:70%;
+  overflow-y:auto;
+  scrollbar-width:thin}
+#editor.on{transform:translateY(0)}
+#editor.pink{border-top-color:var(--pink);
+  box-shadow:0 -10px 30px rgba(255,0,127,.2)}
+#editor.gold{border-top-color:var(--gold);
+  box-shadow:0 -10px 30px rgba(255,204,0,.2)}
+#editor::-webkit-scrollbar{width:4px}
+#editor::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px}
+#editor .eHead{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px}
+#editor .eTitle{
+  flex:1;font-size:11px;font-weight:900;
+  text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--cyan);
+  text-shadow:0 0 8px var(--cyan);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#editor.pink .eTitle{color:var(--pink);text-shadow:0 0 8px var(--pink)}
+#editor.gold .eTitle{color:var(--gold);text-shadow:0 0 8px var(--gold)}
+#editor .eClose{
+  padding:5px 10px;border-radius:8px;
+  border:1px solid currentColor;
+  background:transparent;
+  color:var(--cyan);font:inherit;font-size:11px;font-weight:800;
+  cursor:pointer;font-family:inherit;
+  touch-action:manipulation}
+#editor.pink .eClose{color:var(--pink)}
+#editor.gold .eClose{color:var(--gold)}
+#editor .eClose:active{background:currentColor;color:#050505}
+
+.eRow{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:8px;
+  flex-wrap:wrap}
+.eLabel{
+  min-width:76px;
+  font-size:10px;font-weight:800;
+  color:rgba(255,255,255,.6);
+  text-transform:uppercase;letter-spacing:.5px}
+.eInput,.eSelect,.eTextarea{
+  flex:1;min-width:0;
+  padding:8px 10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:rgba(0,243,255,.05);
+  color:#fff;font:inherit;font-size:12px;
+  font-family:inherit;
+  touch-action:auto;-webkit-user-select:text;user-select:text;
+  outline:none}
+.eInput:focus,.eSelect:focus,.eTextarea:focus{
+  border-color:var(--cyan);
+  box-shadow:0 0 12px rgba(0,243,255,.3)}
+.eTextarea{
+  min-height:80px;resize:vertical;
+  font-family:ui-monospace,Menlo,monospace;
+  line-height:1.4}
+.eSelect{
+  appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--cyan) 50%),
+    linear-gradient(135deg,var(--cyan) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;
+  background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat}
+.eSlider{
+  flex:1;
+  accent-color:var(--cyan);
+  min-width:80px}
+.eVal{
+  min-width:32px;
+  font-size:11px;font-weight:800;
+  color:var(--gold);
+  text-align:right;
+  font-variant-numeric:tabular-nums}
+
+.eActions{
+  display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.eBtn{
+  flex:1;min-width:80px;
+  padding:10px 12px;border-radius:10px;
+  border:1px solid var(--cyan);
+  background:rgba(0,243,255,.1);
+  color:var(--cyan);
+  font:inherit;font-size:11px;font-weight:900;
+  letter-spacing:.5px;text-transform:uppercase;
+  cursor:pointer;font-family:inherit;
+  touch-action:manipulation;
+  transition:all .12s}
+.eBtn:active{background:var(--cyan);color:#050505;transform:scale(.96)}
+.eBtn.primary{background:var(--cyan);color:#050505}
+.eBtn.danger{border-color:var(--pink);color:var(--pink);
+  background:rgba(255,0,127,.1)}
+.eBtn.danger:active{background:var(--pink);color:#fff}
+.eBtn.ghost{border-color:rgba(255,255,255,.3);
+  color:rgba(255,255,255,.7);
+  background:transparent}
+
+/* Chips picker for emoji */
+.eChips{
+  display:flex;gap:4px;flex-wrap:wrap}
+.eChip{
+  padding:6px 10px;border-radius:8px;
+  border:1px solid var(--border);
+  background:rgba(0,243,255,.06);
+  color:var(--cyan);
+  font:inherit;font-size:14px;
+  cursor:pointer;font-family:inherit;
+  touch-action:manipulation;
+  min-width:36px;
+  text-align:center;
+  transition:all .12s}
+.eChip:active,.eChip.on{
+  background:var(--cyan);color:#050505;
+  border-color:var(--cyan)}
+
+/* ============== PLAY MODE ============== */
+#playView{
+  background:
+    radial-gradient(120% 100% at 50% 0%,
+      rgba(255,0,127,.06),transparent 60%)}
+#playMap{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  grid-template-rows:repeat(8,1fr);
+  padding:8px;
+  gap:1px;
+  overflow:hidden}
+#playFooter{
+  flex:0 0 auto;
+  padding:8px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;
+  background:rgba(0,0,0,.4);
+  border-top:1px solid var(--border)}
+#dpad{
+  position:relative;
+  width:76px;height:76px}
+#dpad button{
+  position:absolute;
+  border:1px solid var(--border);
+  background:rgba(0,243,255,.1);
+  color:var(--cyan);
+  font-size:12px;font-weight:900;
+  border-radius:6px;font-family:inherit;
+  cursor:pointer;touch-action:manipulation;
+  display:grid;place-items:center;
+  transition:all .06s}
+#dpad button:active{background:var(--cyan);color:#050505}
+#dpad .up{left:50%;top:0;width:26px;height:26px;margin-left:-13px}
+#dpad .left{left:0;top:50%;width:26px;height:26px;margin-top:-13px}
+#dpad .right{right:0;top:50%;width:26px;height:26px;margin-top:-13px}
+#dpad .down{left:50%;bottom:0;width:26px;height:26px;margin-left:-13px}
+#dpad::after{
+  content:"";position:absolute;left:50%;top:50%;
+  width:12px;height:12px;margin:-6px 0 0 -6px;
+  border-radius:50%;background:rgba(0,0,0,.8);
+  box-shadow:inset 0 0 6px rgba(0,243,255,.3)}
+
+#playBtns{
+  display:flex;gap:8px}
+#playBtns button{
+  width:44px;height:44px;border-radius:50%;
+  border:1.5px solid var(--cyan);
+  background:rgba(0,243,255,.1);
+  color:var(--cyan);
+  font:inherit;font-size:14px;font-weight:900;
+  cursor:pointer;font-family:inherit;
+  touch-action:manipulation;
+  box-shadow:0 0 12px rgba(0,243,255,.3);
+  transition:all .1s}
+#playBtns button:active{background:var(--cyan);color:#050505;
+  transform:scale(.9)}
+#playBtns button.b{border-color:var(--pink);color:var(--pink);
+  background:rgba(255,0,127,.1);
+  box-shadow:0 0 12px rgba(255,0,127,.3)}
+
+/* Dialogue (inline, bottom of play view) */
+#dialog{
+  flex:0 0 auto;
+  margin:0 8px 8px;
+  padding:14px;
+  border-radius:12px;
+  background:linear-gradient(135deg,rgba(0,0,0,.92),rgba(20,0,10,.92));
+  border:1.5px solid var(--pink);
+  box-shadow:0 0 20px rgba(255,0,127,.4);
+  display:none;
+  clip-path:polygon(0 0,98% 0,100% 10%,100% 100%,2% 100%,0 90%)}
+#dialog.on{display:block;
+  animation:popIn .3s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes popIn{
+  from{transform:translateY(20px) scale(.96);opacity:0}
+  to{transform:translateY(0) scale(1);opacity:1}}
+#dialog .dName{
+  color:var(--pink);font-weight:900;font-size:13px;
+  text-transform:uppercase;letter-spacing:2px;
+  margin-bottom:6px;
+  text-shadow:0 0 8px var(--pink)}
+#dialog .dText{
+  font-size:13px;line-height:1.5;
+  text-shadow:0 1px 2px black;
+  margin-bottom:8px}
+#dialog .dOpts{
+  display:flex;flex-wrap:wrap;gap:6px}
+#dialog .dOpts button{
+  padding:6px 12px;
+  background:transparent;
+  border:1px solid var(--cyan);
+  color:var(--cyan);
+  border-radius:6px;
+  cursor:pointer;font:inherit;font-size:11px;font-weight:800;
+  font-family:inherit;touch-action:manipulation}
+#dialog .dOpts button:active{background:var(--cyan);color:#050505}
+
+/* ============== TOAST ============== */
+#toast{
+  position:fixed;left:50%;top:max(60px,calc(env(safe-area-inset-top) + 50px));
+  transform:translateX(-50%);
+  z-index:200;
+  padding:9px 16px;border-radius:10px;
+  background:rgba(0,10,15,.95);
+  border:1px solid var(--cyan);
+  color:var(--cyan);
+  font-size:11px;font-weight:800;
+  letter-spacing:.5px;
+  box-shadow:0 0 20px rgba(0,243,255,.3);
+  opacity:0;transition:opacity .2s;
+  pointer-events:none;
+  max-width:82vw;text-align:center;
+  text-transform:uppercase}
+#toast.on{opacity:1}
+#toast.pink{border-color:var(--pink);color:var(--pink);
+  box-shadow:0 0 20px rgba(255,0,127,.3)}
+
+/* File input hidden */
+input[type=file]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+
+@media (orientation:landscape){
+  #mapGrid{width:min(50vh,440px)}
+  #playMap{font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div id="app">
+
+  <div id="topbar">
+    <span class="logo">🐘</span>
+    <span class="title" id="appTitle">Wunderland Editor</span>
+    <button class="mchip" id="btnSave">💾</button>
+    <button class="mchip" id="btnLoad">📂</button>
+    <button class="mchip" id="btnClear">✕</button>
+  </div>
+
+  <div id="tabs">
+    <button class="tab on" data-mode="map">🗺 Map</button>
+    <button class="tab" data-mode="cast">👥 Cast</button>
+    <button class="tab pink" data-mode="story">📖 Story</button>
+    <button class="tab" data-mode="quests">⚔ Quests</button>
+    <button class="tab" data-mode="play">▶ Play</button>
+  </div>
+
+  <div id="view">
+
+    <!-- MAP MODE -->
+    <div class="view on" id="vMap">
+      <div id="mapWrap">
+        <div id="mapGrid"></div>
+      </div>
+      <div id="palette"></div>
+    </div>
+
+    <!-- CAST MODE -->
+    <div class="view" id="vCast">
+      <div class="listWrap" id="castList"></div>
+    </div>
+
+    <!-- STORY MODE -->
+    <div class="view" id="vStory">
+      <div class="listWrap" id="storyList"></div>
+    </div>
+
+    <!-- QUESTS MODE -->
+    <div class="view" id="vQuests">
+      <div class="listWrap" id="questList"></div>
+    </div>
+
+    <!-- PLAY MODE -->
+    <div class="view" id="vPlay">
+      <div id="playMap"></div>
+      <div id="dialog">
+        <div class="dName" id="dName">NPC</div>
+        <div class="dText" id="dText">…</div>
+        <div class="dOpts" id="dOpts"></div>
+      </div>
+      <div id="playFooter">
+        <div id="dpad">
+          <button class="up" data-dir="up">▲</button>
+          <button class="left" data-dir="left">◀</button>
+          <button class="right" data-dir="right">▶</button>
+          <button class="down" data-dir="down">▼</button>
+        </div>
+        <div id="playBtns">
+          <button class="b" id="btnB">B</button>
+          <button id="btnA">A</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDITOR DRAWER -->
+    <div id="editor">
+      <div class="eHead">
+        <span class="eTitle" id="eTitle">Editor</span>
+        <button class="eClose" id="eClose">✕</button>
+      </div>
+      <div id="eBody"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<input type="file" id="fileLoad" accept=".json">
+<input type="file" id="fileImg" accept="image/*">
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   WUNDERLAND · RPG EDITOR
+   Three.js background + holographic UI + full map/cast/story/quest editor
+   ===================================================================== */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,4);
+const esc = s => String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const toast = (t, pink) => {
+  const e = $('#toast');
+  e.textContent = t;
+  e.classList.toggle('pink', !!pink);
+  e.classList.add('on');
+  clearTimeout(e._t);
+  e._t = setTimeout(() => e.classList.remove('on'), 1500);
+};
+
+/* ===================== THREE.JS BG (their style) ===================== */
+const canvas = $('#bg');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050505, 0.002);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+camera.position.z = 5;
+
+const geo = new THREE.BufferGeometry();
+const N = 1500;
+const pos = new Float32Array(N * 3);
+for(let i = 0; i < N * 3; i++) pos[i] = (Math.random() - 0.5) * 20;
+geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+const mat = new THREE.PointsMaterial({
+  size: 0.05, color: 0x00f3ff, transparent: true, opacity: 0.8,
+  blending: THREE.AdditiveBlending
+});
+const particles = new THREE.Points(geo, mat);
+scene.add(particles);
+
+// second layer: pink particles
+const geo2 = new THREE.BufferGeometry();
+const N2 = 800;
+const pos2 = new Float32Array(N2 * 3);
+for(let i = 0; i < N2 * 3; i++) pos2[i] = (Math.random() - 0.5) * 25;
+geo2.setAttribute('position', new THREE.BufferAttribute(pos2, 3));
+const mat2 = new THREE.PointsMaterial({
+  size: 0.08, color: 0xff007f, transparent: true, opacity: 0.5,
+  blending: THREE.AdditiveBlending
+});
+const particles2 = new THREE.Points(geo2, mat2);
+scene.add(particles2);
+
+(function loop(){
+  requestAnimationFrame(loop);
+  particles.rotation.y += 0.001;
+  particles.rotation.x += 0.0005;
+  particles2.rotation.y -= 0.0008;
+  particles2.rotation.z += 0.0004;
+  renderer.render(scene, camera);
+})();
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+/* ===================== WORLD DATA ===================== */
+const COLS = 12, ROWS = 8;
+const TILES = {
+  '.': { name:'floor', cls:'floor', emoji:'' },
+  '#': { name:'wall',  cls:'wall',  emoji:'' },
+  'G': { name:'grass', cls:'grass', emoji:'' },
+  'W': { name:'water', cls:'water', emoji:'' },
+  'R': { name:'road',  cls:'road',  emoji:'' },
+  '*': { name:'event', cls:'special', emoji:'✦' }
+};
+const ENTITY_PALETTE = ['🐘','🦌','🐰','🦊','🐦','🧑','👮','🧑‍🍳','🧑‍🦱','👑','🤖','🐝','🚁','🧄','🎨','☎'];
+
+const defaultMap = () => {
+  const m = [];
+  for(let y = 0; y < ROWS; y++){
+    const row = [];
+    for(let x = 0; x < COLS; x++){
+      // border walls
+      if(x === 0 || y === 0 || x === COLS-1 || y === ROWS-1) row.push('#');
+      else row.push('.');
+    }
+    m.push(row);
+  }
+  return m;
+};
+
+const state = {
+  mode: 'map',
+  paintTile: '.',
+  paintEntity: null,
+  map: defaultMap(),
+  cast: [
+    { id:uid('c'), emoji:'🐘', name:'Steward', cls:'Guide', hp:30, atk:5, def:5, spd:5,
+      aura:'Mentor', desc:'The elephant who walks you through the world.' },
+    { id:uid('c'), emoji:'🦌', name:'Reh', cls:'Mount', hp:20, atk:2, def:3, spd:9,
+      aura:'Gentle', desc:'You may ride her through the woods.' },
+    { id:uid('c'), emoji:'👑', name:'Red Queen', cls:'Editor', hp:50, atk:8, def:8, spd:7,
+      aura:'Regal', desc:'She paints the world from her telefonzelle.' }
+  ],
+  entities: [
+    { id:uid('e'), emoji:'🍽', name:'Lukullus', x:3, y:3, story:'best döner in the city.' },
+    { id:uid('e'), emoji:'☎',  name:'Red Queen', x:8, y:5, story:'press A to enter the editor.' }
+  ],
+  player: { x: 5, y: 4, facing: 'right', sprite: '🐘', riding: null },
+  story: [
+    { id:uid('s'), speaker:'X42', color:'pink', text:'System-Scan läuft. Zielperson: Die Trolle aus Altona. Status: Bemitleidenswert.' },
+    { id:uid('s'), speaker:'Peter', color:'cyan', text:'Lass gut sein. Ich zeig den Leuten lieber, wie geil veganes Essen ist.' },
+    { id:uid('s'), speaker:'🐇', color:'gold', text:'Tick Tock! Die Zeit rennt im Kampf um die Demokratie!' }
+  ],
+  quests: [
+    { id:uid('q'), icon:'🐘', title:'Meet the Steward', desc:'Tap the elephant on the map.', reward:'♥ bond', done:false },
+    { id:uid('q'), icon:'☎', title:'Reach the Telefonzelle', desc:'Walk to the ☎ tile.', reward:'👑 editor', done:false }
+  ],
+  editor: { open:false, target:null, kind:null }
+};
+
+/* ===================== SAVE / LOAD ===================== */
+function saveWorld(){
+  try {
+    localStorage.setItem('wonder.world', JSON.stringify({
+      map: state.map, cast: state.cast, entities: state.entities,
+      story: state.story, quests: state.quests, player: state.player
+    }));
+    toast('💾 Saved');
+  } catch(e){ toast('save failed', true); }
+}
+function loadWorld(){
+  try {
+    const raw = localStorage.getItem('wonder.world');
+    if(!raw){ toast('nothing saved', true); return; }
+    const d = JSON.parse(raw);
+    if(d.map) state.map = d.map;
+    if(d.cast) state.cast = d.cast;
+    if(d.entities) state.entities = d.entities;
+    if(d.story) state.story = d.story;
+    if(d.quests) state.quests = d.quests;
+    if(d.player) state.player = d.player;
+    renderAll();
+    toast('📂 Loaded');
+  } catch(e){ toast('load failed', true); }
+}
+function clearWorld(){
+  if(!confirm('Clear everything?')) return;
+  localStorage.removeItem('wonder.world');
+  state.map = defaultMap();
+  state.cast = [];
+  state.entities = [];
+  state.story = [];
+  state.quests = [];
+  state.player = { x:5, y:4, facing:'right', sprite:'🐘', riding:null };
+  renderAll();
+  toast('cleared', true);
+}
+function exportJSON(){
+  const blob = new Blob([JSON.stringify({
+    format:'wonder-rpg', version:1, saved:new Date().toISOString(),
+    map: state.map, cast: state.cast, entities: state.entities,
+    story: state.story, quests: state.quests
+  }, null, 1)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wonder-' + Date.now() + '.json';
+  a.click();
+  toast('📂 Exported');
+}
+$('#fileLoad').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if(d.map) state.map = d.map;
+      if(d.cast) state.cast = d.cast;
+      if(d.entities) state.entities = d.entities;
+      if(d.story) state.story = d.story;
+      if(d.quests) state.quests = d.quests;
+      renderAll();
+      toast('📂 Loaded');
+    } catch(err){ toast('load failed', true); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+/* ===================== TABS ===================== */
+$$('.tab').forEach(t => {
+  t.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const m = t.dataset.mode;
+    setMode(m);
+  });
+});
+function setMode(m){
+  state.mode = m;
+  $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.mode === m));
+  $$('.view').forEach(v => v.classList.remove('on'));
+  const id = 'v' + m.charAt(0).toUpperCase() + m.slice(1);
+  $('#' + id).classList.add('on');
+  closeEditor();
+  if(m === 'map')    renderMap();
+  if(m === 'cast')   renderCast();
+  if(m === 'story')  renderStory();
+  if(m === 'quests') renderQuests();
+  if(m === 'play')   renderPlay();
+}
+
+/* ===================== MAP VIEW ===================== */
+function renderMap(){
+  const g = $('#mapGrid');
+  g.innerHTML = '';
+  state.map.forEach((row, y) => {
+    row.forEach((ch, x) => {
+      const c = document.createElement('div');
+      const t = TILES[ch] || TILES['.'];
+      c.className = 'cell ' + t.cls;
+      c.dataset.x = x; c.dataset.y = y;
+      if(t.emoji) c.textContent = t.emoji;
+      const ent = state.entities.find(e => e.x === x && e.y === y);
+      if(ent){
+        c.textContent = ent.emoji;
+        c.classList.add('entity');
+        c.style.filter = 'drop-shadow(0 0 6px rgba(255,0,127,.7))';
+      }
+      c.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation();
+        if(state.paintEntity){
+          // place or move entity
+          const ex = state.entities.find(en => en.x === x && en.y === y);
+          if(ex){ ex.emoji = state.paintEntity; }
+          else {
+            state.entities.push({
+              id: uid('e'),
+              emoji: state.paintEntity,
+              name: state.paintEntity,
+              x, y,
+              story: 'hello.'
+            });
+          }
+          renderMap();
+          return;
+        }
+        if(state.paintTile){
+          // erase entity on tile if any
+          state.entities = state.entities.filter(en => !(en.x === x && en.y === y));
+          state.map[y][x] = state.paintTile;
+          renderMap();
+          return;
+        }
+        // tap empty: select entity to edit
+        const ex = state.entities.find(en => en.x === x && en.y === y);
+        if(ex) openEntityEditor(ex);
+      });
+      g.appendChild(c);
+    });
+  });
+}
+
+/* ===================== PALETTE ===================== */
+function renderPalette(){
+  const p = $('#palette');
+  p.innerHTML = '';
+  // tile palette
+  Object.entries(TILES).forEach(([k, t]) => {
+    const b = document.createElement('button');
+    b.className = 'pchip' + (state.paintTile === k && !state.paintEntity ? ' on' : '');
+    b.innerHTML = (t.emoji ? t.emoji + ' ' : '') + t.name;
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      state.paintTile = k;
+      state.paintEntity = null;
+      renderPalette();
+    });
+    p.appendChild(b);
+  });
+  // entity palette
+  const sep = document.createElement('div');
+  sep.style.cssText = 'flex:0 0 auto;width:1px;background:var(--border);margin:0 3px';
+  p.appendChild(sep);
+  ENTITY_PALETTE.forEach(em => {
+    const b = document.createElement('button');
+    b.className = 'pchip pink' + (state.paintEntity === em ? ' on' : '');
+    b.textContent = em;
+    b.style.fontSize = '16px';
+    b.style.padding = '6px 10px';
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      state.paintEntity = em;
+      state.paintTile = null;
+      renderPalette();
+    });
+    p.appendChild(b);
+  });
+  // eraser
+  const er = document.createElement('button');
+  er.className = 'pchip pink' + (state.paintTile === null && state.paintEntity === null ? ' on' : '');
+  er.textContent = '🧽 erase';
+  er.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    state.paintTile = null;
+    state.paintEntity = null;
+    renderPalette();
+  });
+  p.appendChild(er);
+}
+
+/* ===================== CAST VIEW ===================== */
+function renderCast(){
+  const l = $('#castList');
+  l.innerHTML = '';
+  state.cast.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'hCard';
+    card.innerHTML = `
+      <div class="hEmoji">${c.emoji}</div>
+      <div class="hName">${esc(c.name)}</div>
+      <div class="hMeta">${esc(c.cls)} · ${esc(c.aura)}</div>
+      <div class="hStat">HP<span>${c.hp}</span></div>
+      <div class="hStat">ATK<span>${c.atk}</span></div>
+      <div class="hStat">DEF<span>${c.def}</span></div>
+      <div class="hStat">SPD<span>${c.spd}</span></div>
+      <div class="hBadge">${c.id.slice(-3)}</div>
+    `;
+    card.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      openCharEditor(c);
+    });
+    l.appendChild(card);
+  });
+  // new card
+  const n = document.createElement('div');
+  n.className = 'hCard newCard';
+  n.innerHTML = `<div>＋</div><div class="newLabel">New Cast</div>`;
+  n.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const c = {
+      id: uid('c'), emoji:'🐰', name:'New Hero', cls:'Fighter',
+      hp:20, atk:5, def:5, spd:5, aura:'Brave', desc:'A new face.'
+    };
+    state.cast.push(c);
+    renderCast();
+    openCharEditor(c);
+  });
+  l.appendChild(n);
+}
+
+/* ===================== STORY VIEW ===================== */
+function renderStory(){
+  const l = $('#storyList');
+  l.innerHTML = '';
+  state.story.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'hCard pink';
+    card.innerHTML = `
+      <div class="hName">${esc(s.speaker)}</div>
+      <div class="hMeta" style="white-space:normal;overflow:hidden;
+        display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+        line-height:1.3">${esc(s.text)}</div>
+      <div class="hBadge">#${i+1}</div>
+    `;
+    card.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      openStoryEditor(s, i);
+    });
+    l.appendChild(card);
+  });
+  const n = document.createElement('div');
+  n.className = 'hCard newCard pink';
+  n.innerHTML = `<div>＋</div><div class="newLabel">New Line</div>`;
+  n.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const s = { id:uid('s'), speaker:'X42', color:'pink', text:'new line.' };
+    state.story.push(s);
+    renderStory();
+    openStoryEditor(s, state.story.length-1);
+  });
+  l.appendChild(n);
+}
+
+/* ===================== QUEST VIEW ===================== */
+function renderQuests(){
+  const l = $('#questList');
+  l.innerHTML = '';
+  state.quests.forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'hCard gold' + (q.done ? ' selected' : '');
+    card.innerHTML = `
+      <div class="hEmoji">${q.icon}</div>
+      <div class="hName">${esc(q.title)}</div>
+      <div class="hMeta">${esc(q.desc)}</div>
+      <div class="hStat">Reward<span>${esc(q.reward)}</span></div>
+      <div class="hBadge">${q.done ? '✓' : 'open'}</div>
+    `;
+    card.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      openQuestEditor(q);
+    });
+    l.appendChild(card);
+  });
+  const n = document.createElement('div');
+  n.className = 'hCard newCard gold';
+  n.innerHTML = `<div>＋</div><div class="newLabel">New Quest</div>`;
+  n.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const q = { id:uid('q'), icon:'⚔', title:'New Quest', desc:'Do the thing.', reward:'+1', done:false };
+    state.quests.push(q);
+    renderQuests();
+    openQuestEditor(q);
+  });
+  l.appendChild(n);
+}
+
+/* ===================== EDITOR DRAWER ===================== */
+function openEditor(kind, title, bodyHTML, actions){
+  const ed = $('#editor');
+  ed.className = 'on ' + (kind || '');
+  $('#eTitle').textContent = title;
+  $('#eBody').innerHTML = bodyHTML;
+  const a = document.createElement('div');
+  a.className = 'eActions';
+  (actions || []).forEach(act => {
+    const b = document.createElement('button');
+    b.className = 'eBtn ' + (act.cls || '');
+    b.textContent = act.label;
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      act.cb && act.cb();
+    });
+    a.appendChild(b);
+  });
+  $('#eBody').appendChild(a);
+  wireEditorInputs();
+}
+function closeEditor(){
+  const ed = $('#editor');
+  ed.className = '';
+  ed.classList.remove('on');
+  state.editor.target = null;
+  state.editor.kind = null;
+}
+$('#eClose').addEventListener('pointerdown', e => {
+  e.preventDefault(); closeEditor();
+});
+function wireEditorInputs(){
+  $$('#eBody input[data-bind], #eBody textarea[data-bind], #eBody select[data-bind]').forEach(el => {
+    el.addEventListener('input', () => {
+      const t = state.editor.target;
+      if(!t) return;
+      const k = el.dataset.bind;
+      const v = el.type === 'number' ? parseFloat(el.value) : el.value;
+      t[k] = v;
+      // live-update value display
+      const disp = el.parentElement.querySelector('.eVal');
+      if(disp) disp.textContent = v;
+      refreshListForKind();
+    });
+  });
+  $$('#eBody input[data-bind].eSlider').forEach(el => {
+    el.addEventListener('input', () => {
+      const disp = el.parentElement.querySelector('.eVal');
+      if(disp) disp.textContent = el.value;
+    });
+  });
+}
+function refreshListForKind(){
+  if(state.mode === 'cast')   renderCast();
+  if(state.mode === 'story')  renderStory();
+  if(state.mode === 'quests') renderQuests();
+}
+
+/* ===================== CHAR EDITOR ===================== */
+function openCharEditor(c){
+  state.editor.target = c;
+  state.editor.kind = 'char';
+  const emojis = ['🐘','🦌','🐰','🦊','🐦','🐻','🐺','🦉','🦋','🐝','👑','🤖','🧝','🧑','👮','🎨'];
+  const emojiChips = emojis.map(e =>
+    `<button class="eChip ${e === c.emoji ? 'on' : ''}" data-emoji="${e}">${e}</button>`
+  ).join('');
+  const body = `
+    <div class="eRow">
+      <span class="eLabel">Sprite</span>
+      <div class="eChips" id="charEmojis">${emojiChips}</div>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Name</span>
+      <input class="eInput" data-bind="name" value="${esc(c.name)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Class</span>
+      <input class="eInput" data-bind="cls" value="${esc(c.cls)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Aura</span>
+      <input class="eInput" data-bind="aura" value="${esc(c.aura)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">HP</span>
+      <input class="eSlider" type="range" min="1" max="99" data-bind="hp" value="${c.hp}">
+      <span class="eVal">${c.hp}</span>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">ATK</span>
+      <input class="eSlider" type="range" min="1" max="20" data-bind="atk" value="${c.atk}">
+      <span class="eVal">${c.atk}</span>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">DEF</span>
+      <input class="eSlider" type="range" min="1" max="20" data-bind="def" value="${c.def}">
+      <span class="eVal">${c.def}</span>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">SPD</span>
+      <input class="eSlider" type="range" min="1" max="20" data-bind="spd" value="${c.spd}">
+      <span class="eVal">${c.spd}</span>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Desc</span>
+    </div>
+    <textarea class="eTextarea" data-bind="desc">${esc(c.desc)}</textarea>
+  `;
+  openEditor('', '👤 Cast Editor', body, [
+    { label:'💾 Save', cls:'primary', cb: () => { saveWorld(); closeEditor(); }},
+    { label:'🗑 Delete', cls:'danger', cb: () => {
+      state.cast = state.cast.filter(x => x.id !== c.id);
+      renderCast(); closeEditor(); toast('deleted', true);
+    }},
+    { label:'✕ Close', cls:'ghost', cb: closeEditor }
+  ]);
+  // wire emoji chips
+  $$('#charEmojis .eChip').forEach(chip => {
+    chip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      c.emoji = chip.dataset.emoji;
+      $$('#charEmojis .eChip').forEach(x => x.classList.remove('on'));
+      chip.classList.add('on');
+      // update preview
+      refreshListForKind();
+    });
+  });
+}
+
+/* ===================== STORY EDITOR ===================== */
+function openStoryEditor(s, idx){
+  state.editor.target = s;
+  state.editor.kind = 'story';
+  const colors = [
+    {k:'cyan', label:'Peter/cyan'},
+    {k:'pink', label:'X42/pink'},
+    {k:'gold', label:'Rabbit/gold'}
+  ];
+  const colorChips = colors.map(cl =>
+    `<button class="eChip ${s.color === cl.k ? 'on' : ''}" data-color="${cl.k}" style="font-size:11px;padding:6px 12px">${cl.label}</button>`
+  ).join('');
+  const body = `
+    <div class="eRow">
+      <span class="eLabel">Speaker</span>
+      <input class="eInput" data-bind="speaker" value="${esc(s.speaker)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Color</span>
+      <div class="eChips" id="storyColors">${colorChips}</div>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Line #${idx+1}</span>
+    </div>
+    <textarea class="eTextarea" data-bind="text">${esc(s.text)}</textarea>
+  `;
+  openEditor('pink', '📖 Story Node', body, [
+    { label:'◀ Prev', cls:'ghost', cb: () => {
+      if(idx > 0) openStoryEditor(state.story[idx-1], idx-1);
+    }},
+    { label:'Save', cls:'primary', cb: () => { saveWorld(); closeEditor(); }},
+    { label:'Delete', cls:'danger', cb: () => {
+      state.story.splice(idx, 1);
+      renderStory(); closeEditor(); toast('deleted', true);
+    }},
+    { label:'Next ▶', cls:'ghost', cb: () => {
+      if(idx < state.story.length-1) openStoryEditor(state.story[idx+1], idx+1);
+    }}
+  ]);
+  $$('#storyColors .eChip').forEach(chip => {
+    chip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      s.color = chip.dataset.color;
+      $$('#storyColors .eChip').forEach(x => x.classList.remove('on'));
+      chip.classList.add('on');
+      refreshListForKind();
+    });
+  });
+}
+
+/* ===================== QUEST EDITOR ===================== */
+function openQuestEditor(q){
+  state.editor.target = q;
+  state.editor.kind = 'quest';
+  const icons = ['⚔','🐘','☎','👑','🍽','🗺','🃏','💎','🌿','🔥','⚡','🌙','⭐','🏆'];
+  const iconChips = icons.map(i =>
+    `<button class="eChip ${i === q.icon ? 'on' : ''}" data-icon="${i}">${i}</button>`
+  ).join('');
+  const body = `
+    <div class="eRow">
+      <span class="eLabel">Icon</span>
+      <div class="eChips" id="questIcons">${iconChips}</div>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Title</span>
+      <input class="eInput" data-bind="title" value="${esc(q.title)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Reward</span>
+      <input class="eInput" data-bind="reward" value="${esc(q.reward)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Desc</span>
+    </div>
+    <textarea class="eTextarea" data-bind="desc">${esc(q.desc)}</textarea>
+    <div class="eRow">
+      <span class="eLabel">Status</span>
+      <select class="eSelect" data-bind="done" id="qDone">
+        <option value="false" ${!q.done ? 'selected' : ''}>open</option>
+        <option value="true"  ${ q.done ? 'selected' : ''}>done ✓</option>
+      </select>
+    </div>
+  `;
+  openEditor('gold', '⚔ Quest Editor', body, [
+    { label:'💾 Save', cls:'primary', cb: () => { saveWorld(); closeEditor(); }},
+    { label:'🗑 Delete', cls:'danger', cb: () => {
+      state.quests = state.quests.filter(x => x.id !== q.id);
+      renderQuests(); closeEditor(); toast('deleted', true);
+    }},
+    { label:'✕ Close', cls:'ghost', cb: closeEditor }
+  ]);
+  $$('#questIcons .eChip').forEach(chip => {
+    chip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      q.icon = chip.dataset.icon;
+      $$('#questIcons .eChip').forEach(x => x.classList.remove('on'));
+      chip.classList.add('on');
+      refreshListForKind();
+    });
+  });
+  $('#qDone').addEventListener('change', e => {
+    q.done = e.target.value === 'true';
+    refreshListForKind();
+  });
+}
+
+/* ===================== ENTITY EDITOR ===================== */
+function openEntityEditor(en){
+  state.editor.target = en;
+  state.editor.kind = 'entity';
+  const emojis = ['🍽','☎','🏪','🚔','🌳','🪑','💡','📚','🎨','🧄','🚁','🌸','🍞','💎'];
+  const chips = emojis.map(e =>
+    `<button class="eChip ${e === en.emoji ? 'on' : ''}" data-emoji="${e}">${e}</button>`
+  ).join('');
+  const body = `
+    <div class="eRow">
+      <span class="eLabel">Sprite</span>
+      <div class="eChips" id="entEmojis">${chips}</div>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Name</span>
+      <input class="eInput" data-bind="name" value="${esc(en.name)}">
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Pos</span>
+      <span class="eVal">${en.x}, ${en.y}</span>
+    </div>
+    <div class="eRow">
+      <span class="eLabel">Story</span>
+    </div>
+    <textarea class="eTextarea" data-bind="story">${esc(en.story || '')}</textarea>
+  `;
+  openEditor('pink', '🎴 Entity', body, [
+    { label:'💾 Save', cls:'primary', cb: () => { saveWorld(); closeEditor(); }},
+    { label:'🗑 Delete', cls:'danger', cb: () => {
+      state.entities = state.entities.filter(x => x.id !== en.id);
+      renderMap(); closeEditor(); toast('deleted', true);
+    }},
+    { label:'✕ Close', cls:'ghost', cb: closeEditor }
+  ]);
+  $$('#entEmojis .eChip').forEach(chip => {
+    chip.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      en.emoji = chip.dataset.emoji;
+      $$('#entEmojis .eChip').forEach(x => x.classList.remove('on'));
+      chip.classList.add('on');
+      renderMap();
+    });
+  });
+}
+
+/* ===================== PLAY MODE ===================== */
+function renderPlay(){
+  const g = $('#playMap');
+  g.innerHTML = '';
+  // reset player sprite from cast
+  const hero = state.cast.find(c => c.emoji === state.player.sprite) || state.cast[0];
+  state.map.forEach((row, y) => {
+    row.forEach((ch, x) => {
+      const c = document.createElement('div');
+      const t = TILES[ch] || TILES['.'];
+      c.className = 'cell ' + t.cls;
+      if(t.emoji) c.textContent = t.emoji;
+      // entity here?
+      const en = state.entities.find(e => e.x === x && e.y === y);
+      if(en){
+        c.textContent = en.emoji;
+        c.classList.add('entity');
+      }
+      // player here?
+      if(state.player.x === x && state.player.y === y){
+        c.textContent = state.player.riding ? '🏇' : state.player.sprite;
+        c.classList.add('player');
+      }
+      c.dataset.x = x; c.dataset.y = y;
+      c.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        // tap to interact if player or entity
+        if(state.player.x === x && state.player.y === y){
+          interactHere();
+        } else {
+          // pathless tap-walk: one step toward
+          const dx = x - state.player.x;
+          const dy = y - state.player.y;
+          if(Math.abs(dx) >= Math.abs(dy)) playMove(dx > 0 ? 'right' : 'left');
+          else playMove(dy > 0 ? 'down' : 'up');
+        }
+      });
+      g.appendChild(c);
+    });
+  });
+}
+function playMove(dir){
+  const dx = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+  const dy = dir === 'up'   ? -1 : dir === 'down'  ? 1 : 0;
+  const nx = clamp(state.player.x + dx, 0, COLS-1);
+  const ny = clamp(state.player.y + dy, 0, ROWS-1);
+  const ch = state.map[ny][nx];
+  if(ch === '#' || ch === 'W') return; // blocked
+  state.player.x = nx;
+  state.player.y = ny;
+  if(dx < 0) state.player.facing = 'left';
+  if(dx > 0) state.player.facing = 'right';
+  renderPlay();
+  // auto-interact when landing on an entity
+  const en = state.entities.find(e => e.x === nx && e.y === ny);
+  if(en) setTimeout(() => interactEntity(en), 180);
+}
+$$('#dpad button').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    playMove(b.dataset.dir);
+  });
+});
+$('#btnA').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  interactHere();
+});
+$('#btnB').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if(state.player.riding){
+    state.player.riding = null;
+    renderPlay();
+    toast('dismounted');
+    return;
+  }
+  toast('jumped');
+});
+function interactHere(){
+  const en = state.entities.find(e => e.x === state.player.x && e.y === state.player.y);
+  if(en){ interactEntity(en); return; }
+  // check tile type for specials
+  const ch = state.map[state.player.y][state.player.x];
+  if(ch === '*'){ toast('✦ event tile'); return; }
+  toast('nothing here');
+}
+function interactEntity(en){
+  // try to find a story node matching this entity's name
+  const node = state.story.find(s => s.speaker.toLowerCase().includes(en.name.toLowerCase())) ||
+               state.story[0] ||
+               { speaker: en.name, text: en.story || '…', color:'cyan' };
+  showDialog(node.speaker, node.text, node.color, [
+    { label:'💬 More', cb: () => {
+      const idx = state.story.indexOf(node);
+      const next = state.story[(idx+1) % state.story.length];
+      if(next) showDialog(next.speaker, next.text, next.color, dialogOptsFor(next));
+    }},
+    { label:'✕', cb: hideDialog }
+  ]);
+}
+function dialogOptsFor(node){
+  const idx = state.story.indexOf(node);
+  return [
+    { label:'▶ next', cb: () => {
+      const nx = state.story[(idx+1) % state.story.length];
+      showDialog(nx.speaker, nx.text, nx.color, dialogOptsFor(nx));
+    }},
+    { label:'✕', cb: hideDialog }
+  ];
+}
+function showDialog(name, text, color, opts){
+  const d = $('#dialog');
+  d.classList.add('on');
+  $('#dName').textContent = name;
+  $('#dName').style.color = color === 'pink' ? 'var(--pink)'
+    : color === 'gold' ? 'var(--gold)' : 'var(--cyan)';
+  $('#dName').style.textShadow = color === 'pink' ? '0 0 8px var(--pink)'
+    : color === 'gold' ? '0 0 8px var(--gold)' : '0 0 8px var(--cyan)';
+  $('#dText').textContent = text;
+  const o = $('#dOpts');
+  o.innerHTML = '';
+  (opts || []).forEach(op => {
+    const b = document.createElement('button');
+    b.textContent = op.label;
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      op.cb && op.cb();
+    });
+    o.appendChild(b);
+  });
+}
+function hideDialog(){ $('#dialog').classList.remove('on'); }
+
+/* ===================== TOP BUTTONS ===================== */
+$('#btnSave').addEventListener('pointerdown', e => { e.preventDefault(); saveWorld(); });
+$('#btnLoad').addEventListener('pointerdown', e => { e.preventDefault(); loadWorld(); });
+$('#btnClear').addEventListener('pointerdown', e => { e.preventDefault(); clearWorld(); });
+$('#appTitle').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  exportJSON();
+});
+
+/* ===================== RENDER ALL ===================== */
+function renderAll(){
+  renderMap();
+  renderPalette();
+  renderCast();
+  renderStory();
+  renderQuests();
+  if(state.mode === 'play') renderPlay();
+}
+
+/* ===================== BOOT ===================== */
+window.addEventListener('load', () => {
+  // try restore
+  try {
+    const raw = localStorage.getItem('wonder.world');
+    if(raw){
+      const d = JSON.parse(raw);
+      if(d.map) state.map = d.map;
+      if(d.cast) state.cast = d.cast;
+      if(d.entities) state.entities = d.entities;
+      if(d.story) state.story = d.story;
+      if(d.quests) state.quests = d.quests;
+      if(d.player) state.player = d.player;
+    }
+  } catch(e){}
+  renderAll();
+  setTimeout(() => toast('🐘 Wunderland Editor ready'), 300);
+});
+
+/* ===================== PREVENT ZOOM / PULL ===================== */
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('touchmove', e => {
+  if(e.target.closest('input') || e.target.closest('textarea')) return;
+  if(e.target.closest('.listWrap') || e.target.closest('#palette')) return;
+  if(e.target.closest('#editor')) return;
+  e.preventDefault();
+}, { passive:false });
+</script>
+</body>
+</html>
