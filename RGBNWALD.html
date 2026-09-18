@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0400">
+<title>St. Pauli Zauberwald</title>
+<style>
+:root{
+  --o:#ff8a1f; --y:#ffd23f; --gold:#ffcc55;
+  --ink:#ffe4c0; --ink2:#ffb070;
+  --red:#ff2a4d; --red2:#a10020;
+  --water:#4dc4ff; --water2:#1a5a8a;
+  --grass:#7ae0a8; --grass2:#3f9d6a;
+  --sand:#ffe4a8; --sand2:#c9a55a;
+  --wood:#7a4d2a; --wood2:#3a2410;
+  --stone:#a8b8c8; --stone2:#5a6a7a;
+  --road:#3a3038; --road2:#1a1018;
+  --plaza:#8a7a6a; --plaza2:#4a3a2a;
+  --hex:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  --glitter:conic-gradient(from 0deg,#ff4dd2,#ffb84d,#4dffaa,#4dd2ff,#a64dff,#ff4dd2);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden;
+  font:500 14px/1.4 ui-rounded,"SF Pro Rounded",system-ui,-apple-system,sans-serif;
+  color:var(--ink);background:radial-gradient(80% 60% at 50% 0%,#1a0a04 0%,#0a0400 70%);
+  overscroll-behavior:none;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+
+/* ============== TOP TITLE STRIP ============== */
+#titleStrip{
+  position:fixed;top:0;left:0;right:0;z-index:80;
+  padding:max(6px,env(safe-area-inset-top)) 12px 6px;
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;font-size:11px;font-weight:800;letter-spacing:1px;
+  color:var(--gold);text-shadow:0 0 8px rgba(255,180,80,.5);
+  background:linear-gradient(180deg,rgba(20,8,0,.85) 0%,transparent 100%);
+  pointer-events:none}
+#titleStrip .ts{pointer-events:auto;color:var(--ink);
+  padding:4px 10px;border:1px solid rgba(255,180,80,.4);border-radius:10px;
+  background:rgba(20,8,0,.6)}
+#titleStrip .ts.on{background:linear-gradient(180deg,var(--y),var(--o));color:#1a0000;
+  border-color:transparent}
+
+/* ============== HUD RAILS (hex chips fixed at sides) ============== */
+.rail{
+  position:fixed;top:50%;transform:translateY(-50%);
+  z-index:70;display:flex;flex-direction:column;gap:6px;
+  padding:8px 6px;border-radius:22px;
+  background:rgba(20,8,0,.55);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,180,80,.5);
+  max-height:78vh;overflow-y:auto;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+#railL{left:max(6px,env(safe-area-inset-left))}
+#railR{right:max(6px,env(safe-area-inset-right))}
+
+.hexBtn{
+  width:46px;height:46px;position:relative;
+  display:grid;place-items:center;font-size:20px;
+  color:var(--ink);cursor:pointer;border:0;padding:0;
+  background:linear-gradient(155deg,rgba(255,200,120,.35),rgba(255,120,40,.1));
+  clip-path:var(--hex);
+  touch-action:manipulation;
+  transition:transform .12s;
+  font-family:inherit;font-weight:700;
+  box-shadow:inset 0 0 0 1.5px rgba(255,200,120,.75)}
+.hexBtn::before{
+  content:"";position:absolute;inset:0;clip-path:var(--hex);
+  background:linear-gradient(155deg,rgba(255,255,255,.35),transparent 55%);
+  pointer-events:none}
+.hexBtn:active{transform:scale(.86)}
+.hexBtn.on{background:linear-gradient(155deg,var(--y),var(--o));color:#1a0000;
+  box-shadow:inset 0 0 0 2px rgba(255,240,180,.95),
+    0 0 20px rgba(255,180,80,.7)}
+.hexBtn.red{background:linear-gradient(155deg,var(--red),var(--red2));color:#fff;
+  box-shadow:inset 0 0 0 2px rgba(255,150,150,.95),
+    0 0 22px rgba(255,60,100,.7)}
+.hexBtn .badge{
+  position:absolute;top:6px;right:8px;
+  font-size:8px;font-weight:900;color:#1a0000;
+  padding:1px 4px;border-radius:5px;
+  background:var(--y);z-index:2}
+.hexBtn svg,.hexBtn img{width:65%;height:65%;object-fit:contain;pointer-events:none}
+
+/* ============== MAP ============== */
+#stage{
+  position:fixed;inset:0;z-index:10;
+  overflow:hidden;touch-action:none;
+  perspective:1400px;perspective-origin:50% 62%}
+#mapWrap{
+  position:absolute;left:50%;top:52%;
+  transform-style:preserve-3d;
+  transform:translate(-50%,-50%) rotateX(0deg) rotateZ(0deg);
+  transition:transform .5s}
+body[data-view="3d"] #mapWrap{
+  transform:translate(-50%,-50%) rotateX(58deg) rotateZ(-45deg) scale(.9)}
+#map{
+  display:grid;
+  grid-template-columns:repeat(16,1fr);
+  grid-template-rows:repeat(16,1fr);
+  width:min(96vw,600px);
+  height:min(96vw,600px);
+  gap:0;
+  transform-style:preserve-3d}
+body[data-view="3d"] #map{
+  box-shadow:0 60px 80px rgba(0,0,0,.7),
+    0 0 60px rgba(255,180,80,.25)}
+
+.tile{
+  position:relative;
+  width:100%;height:100%;
+  transition:filter .15s}
+.tile.water{background:linear-gradient(155deg,var(--water),var(--water2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4);
+  animation:waterFlow 4s ease-in-out infinite alternate}
+@keyframes waterFlow{
+  from{filter:brightness(1)}
+  to{filter:brightness(1.12) saturate(1.15)}}
+.tile.road{background:linear-gradient(155deg,var(--road),var(--road2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.tile.road::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;
+  background:repeating-linear-gradient(0deg,rgba(255,200,120,.7) 0 6px,transparent 6px 14px);
+  transform:translateX(-50%)}
+.tile.sidewalk{background:linear-gradient(155deg,#5a4a3a,#3a2a1a);
+  box-shadow:inset 0 1px 0 rgba(255,200,120,.15)}
+.tile.plaza{background:linear-gradient(155deg,var(--plaza),var(--plaza2));
+  box-shadow:inset 0 1px 0 rgba(255,220,150,.3)}
+.tile.plaza::after{content:"";position:absolute;inset:20%;
+  background:repeating-conic-gradient(rgba(255,220,150,.15) 0 25%,transparent 0 50%);
+  background-size:12px 12px;opacity:.6;border-radius:2px}
+.tile.grass{background:linear-gradient(155deg,var(--grass),var(--grass2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.tile.grass.tree::after{content:"🌳";position:absolute;font-size:22px;
+  top:50%;left:50%;transform:translate(-50%,-80%) rotateZ(45deg) rotateX(-58deg);
+  filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+.tile.art{background:linear-gradient(155deg,#4a2a5a,#1a0a2a);
+  box-shadow:inset 0 0 0 1.5px rgba(255,120,220,.5),
+    inset 0 0 20px rgba(255,120,220,.35);
+  cursor:pointer}
+.tile.art::after{content:"🎨";position:absolute;font-size:20px;
+  top:50%;left:50%;transform:translate(-50%,-50%);opacity:.7}
+.tile.art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
+.tile.building{background:linear-gradient(155deg,#6a4a5a,#2a1a2a);
+  box-shadow:inset 0 0 0 1px rgba(255,180,80,.25),
+    inset 0 -3px 0 rgba(0,0,0,.5)}
+.tile.building::before{content:"";position:absolute;
+  left:15%;right:15%;top:15%;bottom:35%;
+  background:repeating-linear-gradient(90deg,
+    rgba(255,220,150,.5) 0 3px,transparent 3px 6px,
+    rgba(255,220,150,.3) 0 8px,transparent 8px 12px);
+  border-radius:2px;opacity:.7}
+.tile.building::after{content:"";position:absolute;
+  left:35%;right:35%;bottom:0;height:35%;
+  background:linear-gradient(180deg,#3a2a1a,#1a0a04);
+  border-radius:2px 2px 0 0}
+/* Special buildings */
+.tile.davidwache{background:linear-gradient(155deg,#a83a3a,#5a1010);
+  box-shadow:inset 0 0 0 2px rgba(255,220,150,.5),
+    inset 0 0 20px rgba(255,120,60,.4)}
+.tile.davidwache::after{content:"👮";position:absolute;font-size:24px;
+  top:50%;left:50%;transform:translate(-50%,-50%)}
+.tile.lukullus{background:linear-gradient(155deg,#c95a2e,#7a1a04);
+  box-shadow:inset 0 0 0 2px rgba(255,220,150,.5),
+    inset 0 0 20px rgba(255,180,60,.5)}
+.tile.lukullus::after{content:"🍽";position:absolute;font-size:24px;
+  top:50%;left:50%;transform:translate(-50%,-50%)}
+.tile.telefonzelle{
+  background:linear-gradient(155deg,#ffcc55,#a86a00);
+  box-shadow:inset 0 0 0 2px rgba(255,240,180,.95),
+    inset 0 0 24px rgba(255,180,60,.7),
+    0 0 30px rgba(255,200,80,.6);
+  animation:tfzGlow 2s ease-in-out infinite alternate}
+@keyframes tfzGlow{
+  from{box-shadow:inset 0 0 0 2px rgba(255,240,180,.95),
+    inset 0 0 20px rgba(255,180,60,.6),0 0 20px rgba(255,200,80,.5)}
+  to{box-shadow:inset 0 0 0 2px rgba(255,240,180,1),
+    inset 0 0 32px rgba(255,180,60,.9),0 0 50px rgba(255,220,100,.9)}}
+.tile.telefonzelle::after{content:"☎";position:absolute;font-size:26px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  filter:drop-shadow(0 0 8px rgba(255,240,150,.9))}
+/* Red Queen overlay mode */
+body[data-redqueen="on"] .tile{filter:brightness(.7) sepia(.5) hue-rotate(-25deg) saturate(1.6)}
+body[data-redqueen="on"] .tile.edit-target{
+  outline:2px dashed var(--red);outline-offset:2px;
+  animation:rqPulse 1s ease-in-out infinite}
+@keyframes rqPulse{50%{outline-color:var(--y)}}
+body[data-redqueen="on"] #stage::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:5;
+  background:radial-gradient(circle at 50% 50%,transparent 40%,rgba(255,20,60,.35) 100%);
+  mix-blend-mode:screen}
+
+/* ============== ENTITIES ============== */
+.entity{
+  position:absolute;
+  width:44px;height:44px;
+  display:grid;place-items:center;
+  font-size:32px;line-height:1;
+  transform:translate(-50%,-75%);
+  transform-origin:center bottom;
+  z-index:5;cursor:pointer;touch-action:manipulation;
+  filter:drop-shadow(0 6px 8px rgba(0,0,0,.6));
+  transition:left .25s cubic-bezier(.34,1.56,.64,1),
+    top .25s cubic-bezier(.34,1.56,.64,1),
+    transform .2s;
+  pointer-events:auto}
+body[data-view="3d"] .entity{
+  transform:translate(-50%,-75%) rotateZ(45deg) rotateX(-58deg)}
+.entity.facing-left{transform:translate(-50%,-75%) scaleX(-1)}
+body[data-view="3d"] .entity.facing-left{
+  transform:translate(-50%,-75%) rotateZ(45deg) rotateX(-58deg) scaleX(-1)}
+.entity.player{z-index:30;
+  animation:idle 1.8s ease-in-out infinite}
+@keyframes idle{
+  0%,100%{filter:drop-shadow(0 6px 8px rgba(0,0,0,.6))
+    drop-shadow(0 0 10px rgba(255,220,150,.6))}
+  50%{filter:drop-shadow(0 4px 6px rgba(0,0,0,.6))
+    drop-shadow(0 0 18px rgba(255,220,150,.9))}}
+.entity.player.riding{font-size:44px}
+.entity.player.hop{animation:hop .32s ease}
+@keyframes hop{
+  0%,100%{transform:translate(-50%,-75%)}
+  45%{transform:translate(-50%,-125%)}
+}
+body[data-view="3d"] .entity.player.hop{
+  animation:hop3d .32s ease}
+@keyframes hop3d{
+  0%,100%{transform:translate(-50%,-75%) rotateZ(45deg) rotateX(-58deg)}
+  45%{transform:translate(-50%,-125%) rotateZ(45deg) rotateX(-58deg)}}
+.entity .lbl{
+  position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
+  font-size:8px;font-weight:800;color:var(--gold);
+  text-shadow:0 0 5px #000;white-space:nowrap;pointer-events:none;
+  background:rgba(0,0,0,.5);padding:1px 5px;border-radius:5px;
+  max-width:80px;overflow:hidden;text-overflow:ellipsis}
+
+/* ============== TOAST ============== */
+#toast{
+  position:fixed;z-index:200;
+  left:50%;top:max(80px,calc(env(safe-area-inset-top) + 60px));
+  transform:translateX(-50%);
+  padding:10px 16px;border-radius:14px;
+  background:rgba(20,8,0,.95);color:var(--gold);
+  font-size:12px;font-weight:800;
+  opacity:0;transition:opacity .25s;
+  pointer-events:none;border:1px solid rgba(255,180,80,.5);
+  max-width:82vw;text-align:center}
+#toast.on{opacity:1}
+
+/* ============== INLINE BANNER (no popups) ============== */
+#banner{
+  position:fixed;left:0;right:0;
+  bottom:calc(max(10px,env(safe-area-inset-bottom)) + 158px);
+  z-index:65;
+  padding:0 12px;
+  display:flex;justify-content:center;pointer-events:none}
+#banner .inner{
+  pointer-events:auto;
+  display:flex;gap:6px;padding:8px 12px;border-radius:16px;
+  background:rgba(20,8,0,.85);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,180,80,.5);
+  max-width:100%;overflow-x:auto;scrollbar-width:none;
+  opacity:0;transform:translateY(20px);
+  transition:opacity .25s, transform .25s}
+#banner .inner::-webkit-scrollbar{display:none}
+#banner .inner.on{opacity:1;transform:translateY(0)}
+.bnBtn{
+  flex:0 0 auto;padding:8px 12px;border-radius:10px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,180,80,.5);
+  color:var(--ink);font:inherit;font-size:11px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap}
+.bnBtn:active{transform:scale(.94)}
+.bnBtn.on,.bnBtn.primary{
+  background:linear-gradient(180deg,var(--y),var(--o));color:#1a0000;
+  border-color:transparent}
+
+/* ============== DIALOG (inline, bottom) ============== */
+#dialog{
+  position:fixed;left:12px;right:12px;
+  bottom:calc(max(10px,env(safe-area-inset-bottom)) + 158px);
+  z-index:66;
+  padding:14px 16px;border-radius:16px;
+  background:linear-gradient(160deg,#fff6ea,#ffe4c0);
+  color:#3a1e00;border:2px solid #3a1e00;
+  box-shadow:0 12px 30px rgba(0,0,0,.7);
+  font-size:13px;font-weight:700;line-height:1.35;
+  display:none}
+#dialog.on{display:block}
+#dialog .dName{font-size:11px;font-weight:900;
+  text-transform:uppercase;letter-spacing:.5px;
+  color:#7a0a34;margin-bottom:4px}
+#dialog .dText{margin-bottom:8px}
+#dialog .dOpts{display:flex;flex-wrap:wrap;gap:6px}
+#dialog .dOpts button{
+  padding:6px 12px;border-radius:10px;border:1.5px solid #3a1e00;
+  background:#fff6ea;color:#3a1e00;
+  font:inherit;font-size:11px;font-weight:800;
+  cursor:pointer;touch-action:manipulation}
+#dialog .dOpts button:active{background:#3a1e00;color:#fff6ea}
+
+/* ============== JOYSTICK ============== */
+#joy{
+  position:fixed;left:14px;
+  bottom:max(14px,env(safe-area-inset-bottom));
+  width:120px;height:120px;z-index:60;touch-action:none}
+#joy .jbg{
+  width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,rgba(255,200,120,.15),rgba(60,20,0,.6));
+  border:2px solid rgba(255,180,80,.5);
+  box-shadow:inset 0 0 20px rgba(255,150,60,.3),
+    0 0 24px rgba(255,150,60,.25)}
+#joy .stick{
+  position:absolute;left:50%;top:50%;
+  width:54px;height:54px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ffe9a8,#ff8a1f 70%,#8a3a00);
+  border:2px solid var(--gold);
+  transform:translate(-50%,-50%);
+  box-shadow:0 4px 14px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.6);
+  pointer-events:none;
+  transition:transform .05s}
+
+/* ============== ACTION BUTTONS ============== */
+#actions{
+  position:fixed;right:14px;
+  bottom:max(14px,env(safe-area-inset-bottom));
+  z-index:60;display:flex;gap:10px}
+#actions button{
+  width:58px;height:58px;border-radius:50%;
+  border:2px solid var(--gold);cursor:pointer;touch-action:manipulation;
+  color:#1a0000;font-size:16px;font-weight:900;
+  background:radial-gradient(circle at 35% 30%,#ffe9a8,#ff8a1f 70%,#8a3a00);
+  box-shadow:0 6px 16px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.6);
+  transition:transform .1s;
+  font-family:inherit}
+#actions button:active{transform:scale(.9)}
+#actions button.b{background:radial-gradient(circle at 35% 30%,#ffd0a8,#c95a2e 70%,#5a1a10);
+  color:#fff}
+
+/* ============== FILE INPUT (real, hidden) ============== */
+.fileInput{
+  position:absolute;
+  left:-9999px;
+  width:1px;height:1px;opacity:0;
+  pointer-events:none}
+
+/* ============== GLITTER ============== */
+#glitter{
+  position:fixed;inset:0;z-index:3;pointer-events:none;
+  background-image:
+    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.7), transparent),
+    radial-gradient(2px 2px at 70% 60%, rgba(255,200,120,.6), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,.5), transparent),
+    radial-gradient(3px 3px at 85% 15%, rgba(255,180,220,.5), transparent),
+    radial-gradient(2px 2px at 15% 70%, rgba(200,220,255,.5), transparent);
+  animation:glitterTwinkle 3s ease-in-out infinite alternate;
+  mix-blend-mode:screen}
+@keyframes glitterTwinkle{from{opacity:.35}to{opacity:1}}
+
+/* ============== SPARKLES ============== */
+#sparkles{position:fixed;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+.sparkle{
+  position:absolute;font-size:14px;pointer-events:none;
+  animation:sparkleFall linear infinite;opacity:.85}
+@keyframes sparkleFall{
+  0%{transform:translateY(-10vh) rotate(0);opacity:0}
+  20%{opacity:1}
+  100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+/* ============== ASSET VIEWER (inline, full-bleed) ============== */
+#viewer{
+  position:fixed;inset:0;z-index:130;
+  background:rgba(0,0,0,.94);
+  display:none;flex-direction:column;
+  touch-action:auto}
+#viewer.on{display:flex}
+#viewerHead{
+  flex:0 0 auto;
+  padding:max(10px,env(safe-area-inset-top)) 14px 10px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,180,80,.5)}
+#viewerHead .vName{flex:1;font-size:12px;font-weight:800;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#viewerHead button{
+  padding:6px 12px;border-radius:10px;
+  border:1px solid rgba(255,180,80,.5);
+  background:rgba(255,255,255,.08);color:var(--ink);
+  font:inherit;font-size:11px;font-weight:800;cursor:pointer;
+  touch-action:manipulation}
+#viewerBody{
+  flex:1;display:grid;place-items:center;overflow:hidden;
+  position:relative}
+#viewerBody img,#viewerBody video,#viewerBody iframe,#viewerBody model-viewer{
+  max-width:100%;max-height:100%;width:100%;height:100%;
+  object-fit:contain;border:0}
+#viewerBody audio{width:90%}
+#viewerBody pre{
+  color:var(--ink);font-size:12px;padding:20px;
+  white-space:pre-wrap;text-align:left;margin:0;
+  width:100%;height:100%;overflow:auto;background:rgba(0,0,0,.3)}
+
+/* ============== CHAPTERS (inline row) ============== */
+#chapters{
+  position:fixed;left:0;right:0;
+  top:max(34px,calc(env(safe-area-inset-top) + 30px));
+  z-index:72;
+  padding:0 12px;
+  display:flex;justify-content:center;gap:6px;
+  overflow-x:auto;scrollbar-width:none;
+  pointer-events:none}
+#chapters::-webkit-scrollbar{display:none}
+#chapters .inner{
+  pointer-events:auto;display:flex;gap:5px;
+  padding:4px 8px;border-radius:14px;
+  background:rgba(20,8,0,.6);
+  border:1px solid rgba(255,180,80,.4);
+  max-width:100%;overflow-x:auto;scrollbar-width:none}
+#chapters .inner::-webkit-scrollbar{display:none}
+.chChip{
+  flex:0 0 auto;padding:5px 10px;border-radius:9px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,180,80,.4);
+  color:var(--ink);font:inherit;font-size:10px;font-weight:800;
+  cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  font-family:inherit}
+.chChip.on{background:linear-gradient(180deg,var(--y),var(--o));color:#1a0000;
+  border-color:transparent}
+.chChip.red.on{background:linear-gradient(180deg,var(--red),var(--red2));color:#fff}
+
+/* ============== DEV PANEL (inline, bottom, toggleable) ============== */
+#devPanel{
+  position:fixed;left:12px;right:12px;
+  bottom:calc(max(10px,env(safe-area-inset-bottom)) + 158px);
+  z-index:67;
+  padding:10px 12px;border-radius:14px;
+  background:rgba(20,8,0,.9);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,180,80,.5);
+  display:none;
+  max-height:44vh;overflow-y:auto;scrollbar-width:none}
+#devPanel::-webkit-scrollbar{display:none}
+#devPanel.on{display:block}
+#devPanel .dpRow{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  margin-bottom:6px}
+#devPanel .dpLabel{
+  font-size:10px;font-weight:800;color:var(--gold);
+  letter-spacing:.5px;text-transform:uppercase;
+  min-width:70px}
+.paletteChip{
+  padding:6px 10px;border-radius:9px;
+  border:1px solid rgba(255,180,80,.5);
+  background:rgba(255,255,255,.08);color:var(--ink);
+  font:inherit;font-size:10px;font-weight:800;cursor:pointer;
+  touch-action:manipulation;font-family:inherit}
+.paletteChip.on{background:linear-gradient(180deg,var(--y),var(--o));color:#1a0000;
+  border-color:transparent}
+.paletteChip.water{background:linear-gradient(155deg,var(--water),var(--water2));color:#fff;border:0}
+.paletteChip.road{background:linear-gradient(155deg,var(--road),var(--road2));color:#fff;border:0}
+.paletteChip.plaza{background:linear-gradient(155deg,var(--plaza),var(--plaza2));color:#fff;border:0}
+.paletteChip.grass{background:linear-gradient(155deg,var(--grass),var(--grass2));color:#1a0000;border:0}
+.paletteChip.art{background:linear-gradient(155deg,#4a2a5a,#1a0a2a);color:#fff;border:0}
+.paletteChip.building{background:linear-gradient(155deg,#6a4a5a,#2a1a2a);color:#fff;border:0}
+.paletteChip.david{background:linear-gradient(155deg,#a83a3a,#5a1010);color:#fff;border:0}
+.paletteChip.lukullus{background:linear-gradient(155deg,#c95a2e,#7a1a04);color:#fff;border:0}
+.paletteChip.tfz{background:linear-gradient(155deg,#ffcc55,#a86a00);color:#1a0000;border:0}
+
+input[type=file]{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+
+@media (orientation:portrait){
+  #map{width:min(98vw,560px);height:min(98vw,560px)}
+}
+@media (orientation:landscape){
+  #map{width:min(72vh,560px);height:min(72vh,560px)}
+  .hexBtn{width:42px;height:42px;font-size:18px}
+  #joy{width:104px;height:104px}
+  #actions button{width:52px;height:52px;font-size:14px}
+}
+</style>
+</head>
+<body data-view="3d" data-redqueen="off">
+
+<!-- GLITTER / SPARKLES -->
+<div id="glitter"></div>
+<div id="sparkles"></div>
+
+<!-- TITLE STRIP (top, thin) -->
+<div id="titleStrip">
+  <span class="ts" id="tsZone">🏙 St. Pauli</span>
+  <span class="ts" id="tsView">◑ 3D</span>
+</div>
+
+<!-- CHAPTERS ROW (below title) -->
+<div id="chapters">
+  <div class="inner" id="chaptersInner">
+    <button class="chChip on" data-ch="0">I · Home</button>
+    <button class="chChip" data-ch="1">II · Streets</button>
+    <button class="chChip" data-ch="2">III · Night</button>
+    <button class="chChip red" data-ch="3">RED · Queen</button>
+  </div>
+</div>
+
+<!-- =========== LEFT RAIL =========== -->
+<div class="rail" id="railL">
+  <button class="hexBtn" data-app="cards" title="Cards">🃏</button>
+  <button class="hexBtn" data-app="lib" title="Library">📚</button>
+  <button class="hexBtn" data-app="npc" title="People">👥</button>
+  <button class="hexBtn" data-app="quest" title="Quests">🗺</button>
+  <button class="hexBtn" data-app="cine" title="Cinema">🎬</button>
+  <button class="hexBtn" data-app="orb" title="Peace-Orb">🔮</button>
+</div>
+
+<!-- =========== RIGHT RAIL =========== -->
+<div class="rail" id="railR">
+  <label for="fileUp" class="hexBtn" title="Upload">⬆</label>
+  <button class="hexBtn" data-act="save" title="Save">💾</button>
+  <button class="hexBtn" data-act="download" title="Export map">📥</button>
+  <label for="fileMap" class="hexBtn" title="Load map">📤</label>
+  <button class="hexBtn" data-act="redqueen" id="rqBtn" title="Red Queen">👑</button>
+  <button class="hexBtn" data-act="dev" id="devBtn" title="Dev">⚙</button>
+</div>
+
+<!-- =========== STAGE =========== -->
+<div id="stage">
+  <div id="mapWrap">
+    <div id="map"></div>
+  </div>
+</div>
+
+<!-- =========== INLINE BANNER (contextual actions) =========== -->
+<div id="banner">
+  <div class="inner" id="bannerInner"></div>
+</div>
+
+<!-- =========== INLINE DIALOG =========== -->
+<div id="dialog">
+  <div class="dName" id="dName">NPC</div>
+  <div class="dText" id="dText">…</div>
+  <div class="dOpts" id="dOpts"></div>
+</div>
+
+<!-- =========== DEV PANEL (map editor) =========== -->
+<div id="devPanel">
+  <div class="dpRow">
+    <span class="dpLabel">Paint</span>
+    <button class="paletteChip" data-paint="road">road</button>
+    <button class="paletteChip" data-paint="sidewalk">sidewalk</button>
+    <button class="paletteChip" data-paint="plaza">plaza</button>
+    <button class="paletteChip" data-paint="grass">grass</button>
+    <button class="paletteChip" data-paint="water">water</button>
+  </div>
+  <div class="dpRow">
+    <span class="dpLabel">Place</span>
+    <button class="paletteChip" data-paint="building">bldg</button>
+    <button class="paletteChip" data-paint="art">art</button>
+    <button class="paletteChip" data-paint="davidwache">David</button>
+    <button class="paletteChip" data-paint="lukullus">Lukullus</button>
+    <button class="paletteChip" data-paint="telefonzelle">☎ Queen</button>
+  </div>
+  <div class="dpRow">
+    <span class="dpLabel">NPC</span>
+    <button class="paletteChip" data-npc="david">👮 Officer</button>
+    <button class="paletteChip" data-npc="homeless">🧑‍🦱 Homeless</button>
+    <button class="paletteChip" data-npc="artist">🎨 Artist</button>
+    <button class="paletteChip" data-npc="deer">🦌 Deer</button>
+    <button class="paletteChip" data-npc="garlic">🧄 Garlic</button>
+    <button class="paletteChip" data-npc="drone">🚁 Drone</button>
+  </div>
+  <div class="dpRow">
+    <span class="dpLabel">Red Q</span>
+    <button class="paletteChip" data-rq="dismiss">dismiss dialog</button>
+    <button class="paletteChip" data-rq="reset">reset map</button>
+  </div>
+</div>
+
+<!-- =========== VIEWER (full bleed, inline) =========== -->
+<div id="viewer">
+  <div id="viewerHead">
+    <span class="vName" id="vName">asset</span>
+    <button id="vClose">✕</button>
+  </div>
+  <div id="viewerBody" id="viewerBody"></div>
+</div>
+
+<!-- =========== JOYSTICK =========== -->
+<div id="joy">
+  <div class="jbg"></div>
+  <div class="stick" id="stick"></div>
+</div>
+
+<!-- =========== A / B =========== -->
+<div id="actions">
+  <button class="b" id="actB">B</button>
+  <button id="actA">A</button>
+</div>
+
+<!-- =========== FILE INPUTS =========== -->
+<input type="file" id="fileUp" multiple accept="*/*">
+<input type="file" id="fileMap" accept=".json">
+<input type="file" id="fileArt" accept="image/*">
+
+<div id="toast"></div>
+
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<script>
+/* =====================================================================
+   ST. PAULI ZAUBERWALD — rebuilt around Lukullus & the Red Queen
+   ===================================================================== */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+const toast = t => {
+  const e = $('#toast'); e.textContent = t; e.classList.add('on');
+  clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), 1800);
+};
+
+/* ===================== MAP DEFINITION ===================== */
+/* 16x16 St. Pauli layout:
+   W=water  R=road  S=sidewalk  P=plaza  G=grass  B=building  A=art wall
+   D=Davidwache  L=Lukullus  T=Telefonzelle */
+const DEFAULT_MAP = [
+  'W W W W W W W W W W W W W W W W',
+  'W W W W W W W W W W W W W W W W',
+  'W R R R R R R R R R R R R R R W',
+  'W R S S S S S S S S S S S S R W',
+  'W R S B B S B B S B B S B S R W',
+  'W R S B B S B B S B B S B S R W',
+  'W R S S S S S S S S S S S S R W',
+  'W R S B D D S S S B B S S S R W',
+  'W R S B D D S P P S B B S S R W',
+  'W R S S S S S P P S S S S A S R W',
+  'W R S B B S S S S S B B S A S R W',
+  'W R S B B S A A S B B S L L L R W',
+  'W R S B B S A A S B B S L L L R W',
+  'W R S S S S S S S S S S S T S R W',
+  'W R R R R R R R R R R R R R R R W',
+  'W W W W W W W W W W W W W W W W W'
+];
+
+/* ===================== STATE ===================== */
+const state = {
+  view: '3d',
+  redqueen: false,
+  devOpen: false,
+  map: JSON.parse(localStorage.getItem('zw.map') || 'null') || DEFAULT_MAP.map(r => r.split(/\s+/)),
+  player: { x: 7, y: 10, facing: 'right', riding: null },
+  entities: JSON.parse(localStorage.getItem('zw.npcs') || 'null') || [
+    { id:'officer',   kind:'npc',     x:5, y:7,  emoji:'👮', name:'Officer',     name2:'Davidwache',   line:'You again. Nothing to see here. Move along.' },
+    { id:'homeless',  kind:'npc',     x:9, y:9,  emoji:'🧑‍🦱', name:'Klaus',      name2:'Homeless',     line:'Spare a euro? Or a story. Same price.' },
+    { id:'artist',    kind:'npc',     x:12,y:10, emoji:'🎨', name:'Mira',        name2:'Artist',       line:'This wall talks to me. Wanna hear it?' },
+    { id:'seller',    kind:'npc',     x:3, y:10, emoji:'🧑‍🍳', name:'Sasha',      name2:'Lukullus',     line:'Best kebap in Hamburg. Trust me.' },
+    { id:'deer',      kind:'animal',  x:2, y:5,  emoji:'🦌', name:'Reh',         name2:'Deer',         line:'*gentle deer — you may ride me*' },
+    { id:'garlic1',   kind:'garlic',  x:4, y:12, emoji:'🧄', name:'Garlic I',    name2:'',             line:'Almost ripe.' },
+    { id:'garlic2',   kind:'garlic',  x:6, y:12, emoji:'🧄', name:'Garlic II',   name2:'',             line:'Blooms at dawn.' },
+    { id:'drone1',    kind:'drone',   x:11,y:12, emoji:'🚁', name:'Drone A',     name2:'',             line:'*whirs*' },
+    { id:'lukullus',  kind:'lukullus',x:12,y:11, emoji:'🍽', name:'Lukullus',    name2:'Eatery',       line:'The best döner in the city.' },
+    { id:'david',     kind:'david',   x:5, y:8,  emoji:'🚔', name:'Davidwache',  name2:'Police',       line:'Since 1840.' },
+    { id:'tfz',       kind:'tfz',     x:12,y:13, emoji:'☎',  name:'Red Queen',   name2:'Telefonzelle', line:'Press A to open the phone hub.' }
+  ]
+};
+function save(){
+  try {
+    localStorage.setItem('zw.map', JSON.stringify(state.map));
+    localStorage.setItem('zw.npcs', JSON.stringify(state.entities));
+  } catch(e){}
+}
+
+/* ===================== BUILD THE MAP ===================== */
+function renderMap(){
+  const m = $('#map');
+  m.innerHTML = '';
+  const rows = state.map;
+  rows.forEach((line, y) => {
+    line.forEach((ch, x) => {
+      const t = document.createElement('div');
+      t.className = 'tile ' + tileClass(ch);
+      t.dataset.x = x;
+      t.dataset.y = y;
+      t.dataset.type = ch;
+      if(ch === 'G' && Math.random() < 0.20) t.classList.add('tree');
+      // Art walls keep a slot for user images
+      if(ch === 'A'){
+        const img = localStorage.getItem('zw.art_' + x + '_' + y);
+        if(img){ const im = new Image(); im.src = img; t.appendChild(im); }
+      }
+      t.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation();
+        onTileTap(x, y, t);
+      });
+      m.appendChild(t);
+    });
+  });
+  renderEntities();
+  positionPlayer();
+}
+function tileClass(ch){
+  return ({
+    'W':'water','R':'road','S':'sidewalk','P':'plaza','G':'grass','B':'building',
+    'A':'art','D':'davidwache','L':'lukullus','T':'telefonzelle'
+  })[ch] || 'sidewalk';
+}
+function isWalkable(ch){
+  return ['R','S','P','G','A'].includes(ch);
+}
+
+/* ===================== ENTITIES ===================== */
+function renderEntities(){
+  $$('.entity:not(.player)').forEach(e => e.remove());
+  const map = $('#map');
+  const rect = map.getBoundingClientRect();
+  const cols = state.map[0].length;
+  const rows = state.map.length;
+  state.entities.forEach(en => {
+    const el = document.createElement('div');
+    el.className = 'entity';
+    el.dataset.id = en.id;
+    el.style.left = ((en.x + 0.5) / cols * 100) + '%';
+    el.style.top  = ((en.y + 0.5) / rows * 100) + '%';
+    el.textContent = en.emoji;
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl'; lbl.textContent = en.name;
+    el.appendChild(lbl);
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      interactWith(en);
+    });
+    map.appendChild(el);
+  });
+}
+function positionPlayer(){
+  let p = $('#player-sprite');
+  if(!p){
+    p = document.createElement('div');
+    p.id = 'player-sprite';
+    p.className = 'entity player';
+    p.textContent = '🧝‍♀️';
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl'; lbl.textContent = 'Steward';
+    p.appendChild(lbl);
+    $('#map').appendChild(p);
+    p.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      showDialog('Steward', 'The narrator. I walk with you.',
+        [{label:'Follow', cb:() => toast('I am here.')}]);
+    });
+  }
+  const cols = state.map[0].length;
+  const rows = state.map.length;
+  p.style.left = ((state.player.x + 0.5) / cols * 100) + '%';
+  p.style.top  = ((state.player.y + 0.5) / rows * 100) + '%';
+  p.classList.toggle('facing-left', state.player.facing === 'left');
+  p.textContent = state.player.riding ? '🏇' : '🧝‍♀️';
+  if(state.player.riding){
+    const l = document.createElement('div');
+    l.className = 'lbl'; l.textContent = 'Steward · riding';
+    p.innerHTML = '🏇'; p.appendChild(l);
+  }
+}
+
+/* ===================== INTERACTION ===================== */
+function interactWith(en){
+  // Build dialogue with options depending on kind
+  const opts = [];
+  if(en.kind === 'animal' && en.id === 'deer'){
+    opts.push({ label: '🦌 Ride', cb: () => {
+      state.player.riding = en.id;
+      positionPlayer();
+      toast('🦌 riding the deer');
+    }});
+  }
+  if(en.kind === 'garlic'){
+    opts.push({ label: '💧 Water', cb: () => {
+      toast('🧄 bloomed');
+      burstAt(en.x, en.y);
+    }});
+  }
+  if(en.kind === 'drone'){
+    opts.push({ label: '🚁 Send', cb: () => {
+      const g = state.entities.find(e => e.kind === 'garlic');
+      if(g){
+        const el = document.querySelector(`.entity[data-id="${en.id}"]`);
+        if(el){
+          const cols = state.map[0].length, rows = state.map.length;
+          el.style.left = ((g.x + 0.5) / cols * 100) + '%';
+          el.style.top  = ((g.y + 0.5) / rows * 100) + '%';
+          toast('🚁 drone on the way');
+        }
+      }
+    }});
+  }
+  if(en.kind === 'tfz'){
+    opts.push({ label: '☎ Open phone hub', cb: () => openPhoneHub() });
+    opts.push({ label: '👑 Enter as Red Queen', cb: () => toggleRedQueen(true) });
+  }
+  if(en.kind === 'david'){
+    opts.push({ label: '👮 Ask', cb: () => showDialog(en.name, 'Nothing to report today.', []) });
+  }
+  opts.push({ label: '✕ Close', cb: () => hideDialog() });
+  showDialog(en.name, en.line, opts);
+  if(en.kind === 'npc'){
+    const p = $('#player-sprite');
+    if(p){ p.classList.remove('hop'); void p.offsetWidth; p.classList.add('hop'); }
+  }
+}
+
+/* ===================== DIALOG ===================== */
+function showDialog(name, text, opts){
+  $('#dName').textContent = name;
+  $('#dText').textContent = text;
+  const o = $('#dOpts'); o.innerHTML = '';
+  (opts || []).forEach(op => {
+    const b = document.createElement('button');
+    b.textContent = op.label;
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      op.cb && op.cb();
+      if(op.label.indexOf('Close') === -1) hideDialog();
+    });
+    o.appendChild(b);
+  });
+  $('#dialog').classList.add('on');
+}
+function hideDialog(){ $('#dialog').classList.remove('on'); }
+
+/* ===================== BANNER (inline context) ===================== */
+function showBanner(buttons){
+  const b = $('#bannerInner');
+  b.innerHTML = '';
+  (buttons || []).forEach(btn => {
+    const el = document.createElement('button');
+    el.className = 'bnBtn' + (btn.on ? ' on' : '') + (btn.primary ? ' primary' : '');
+    el.textContent = btn.label;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      btn.cb && btn.cb();
+    });
+    b.appendChild(el);
+  });
+  if((buttons || []).length) b.classList.add('on');
+  else b.classList.remove('on');
+}
+function hideBanner(){ $('#bannerInner').classList.remove('on'); }
+
+/* ===================== TILE TAP ===================== */
+let painting = null;
+function onTileTap(x, y, el){
+  // Painting mode (dev panel open, palette chip selected)
+  if(state.devOpen && painting){
+    if(painting.type === 'tile'){
+      state.map[y][x] = painting.code;
+      save();
+      renderMap();
+      return;
+    }
+    if(painting.type === 'npc'){
+      state.entities.push({
+        id: uid('e'),
+        kind: painting.kind,
+        x, y,
+        emoji: painting.emoji,
+        name: painting.name,
+        line: painting.line || '…'
+      });
+      save();
+      renderEntities();
+      return;
+    }
+  }
+  // Red Queen mode: place art image on tile
+  if(state.redqueen && el.classList.contains('art')){
+    const inp = $('#fileArt');
+    inp.onchange = () => {
+      const f = inp.files[0]; if(!f) return;
+      const url = URL.createObjectURL(f);
+      localStorage.setItem('zw.art_' + x + '_' + y, url);
+      renderMap();
+      toast('🎨 art placed');
+      inp.value = '';
+    };
+    inp.click();
+    return;
+  }
+  // Normal: walk to tile if adjacent, else move player one step
+  const dx = x - state.player.x, dy = y - state.player.y;
+  if(Math.abs(dx) + Math.abs(dy) === 0){
+    // Current tile: interact with any nearby entity
+    const nearby = state.entities.find(en =>
+      Math.abs(en.x - x) <= 1 && Math.abs(en.y - y) <= 1);
+    if(nearby) interactWith(nearby);
+    return;
+  }
+  // Move one step toward
+  if(Math.abs(dx) >= Math.abs(dy)){
+    tryMove(dx > 0 ? 'right' : 'left');
+  } else {
+    tryMove(dy > 0 ? 'down' : 'up');
+  }
+}
+
+/* ===================== MOVEMENT ===================== */
+function tryMove(dir){
+  const dx = dir === 'left' ? -1 : dir === 'right' ? 1 : 0;
+  const dy = dir === 'up' ? -1 : dir === 'down' ? 1 : 0;
+  const nx = clamp(state.player.x + dx, 0, state.map[0].length - 1);
+  const ny = clamp(state.player.y + dy, 0, state.map.length - 1);
+  const ch = state.map[ny][nx];
+  if(!isWalkable(ch)) return false;
+  // Riding a deer? faster
+  state.player.x = nx;
+  state.player.y = ny;
+  if(dx < 0) state.player.facing = 'left';
+  if(dx > 0) state.player.facing = 'right';
+  positionPlayer();
+  const p = $('#player-sprite');
+  if(p){ p.classList.remove('hop'); void p.offsetWidth; p.classList.add('hop'); }
+  // Land on entity?
+  const on = state.entities.find(en => en.x === nx && en.y === ny);
+  if(on) setTimeout(() => interactWith(on), 200);
+  return true;
+}
+
+/* ===================== JOYSTICK ===================== */
+const joy = $('#joy'); const stick = $('#stick');
+let joyActive = false, joyOrigin = {x:0, y:0}, moveDir = {dx:0, dy:0}, moveTimer = null;
+joy.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  joyActive = true;
+  joy.setPointerCapture(e.pointerId);
+  const r = joy.getBoundingClientRect();
+  joyOrigin = { x: r.left + r.width/2, y: r.top + r.height/2 };
+});
+joy.addEventListener('pointermove', e => {
+  if(!joyActive) return;
+  const dx = e.clientX - joyOrigin.x;
+  const dy = e.clientY - joyOrigin.y;
+  const mag = Math.min(42, Math.hypot(dx, dy));
+  const ang = Math.atan2(dy, dx);
+  const nx = Math.cos(ang) * mag, ny = Math.sin(ang) * mag;
+  stick.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+  if(mag < 14){ moveDir = {dx:0, dy:0}; }
+  else if(Math.abs(nx) > Math.abs(ny)){ moveDir = {dx: nx > 0 ? 1 : -1, dy: 0}; }
+  else { moveDir = {dx: 0, dy: ny > 0 ? 1 : -1}; }
+  if(!moveTimer && (moveDir.dx || moveDir.dy)){
+    moveTimer = setInterval(() => {
+      if(moveDir.dx){ tryMove(moveDir.dx > 0 ? 'right' : 'left'); }
+      if(moveDir.dy){ tryMove(moveDir.dy > 0 ? 'down' : 'up'); }
+    }, state.player.riding ? 180 : 280);
+  }
+});
+joy.addEventListener('pointerup', e => {
+  joyActive = false;
+  stick.style.transform = 'translate(-50%,-50%)';
+  moveDir = {dx:0, dy:0};
+  if(moveTimer){ clearInterval(moveTimer); moveTimer = null; }
+});
+joy.addEventListener('pointercancel', () => {
+  joyActive = false;
+  if(moveTimer){ clearInterval(moveTimer); moveTimer = null; }
+});
+
+/* ===================== A / B ===================== */
+$('#actA').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  // Interact with nearest entity
+  let best = null, bestD = Infinity;
+  state.entities.forEach(en => {
+    const d = Math.abs(en.x - state.player.x) + Math.abs(en.y - state.player.y);
+    if(d < bestD){ bestD = d; best = en; }
+  });
+  if(best && bestD <= 2) interactWith(best);
+  else toast('🌱 nothing nearby');
+});
+$('#actB').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if(state.player.riding){
+    state.player.riding = null;
+    positionPlayer();
+    toast('🦌 dismounted');
+    return;
+  }
+  toast('👣 jumped');
+  const p = $('#player-sprite');
+  if(p){ p.classList.remove('hop'); void p.offsetWidth; p.classList.add('hop'); }
+});
+
+/* ===================== TILE PAINT (dev) ===================== */
+const TILE_PALETTE = {
+  road:'R', sidewalk:'S', plaza:'P', grass:'G', water:'W',
+  building:'B', art:'A', davidwache:'D', lukullus:'L', telefonzelle:'T'
+};
+const NPC_PALETTE = {
+  david:{kind:'npc', emoji:'👮', name:'Officer',  line:'Move along.'},
+  homeless:{kind:'npc', emoji:'🧑‍🦱', name:'Klaus', line:'Got a euro?'},
+  artist:{kind:'npc', emoji:'🎨', name:'Mira', line:'Watch this wall.'},
+  deer:{kind:'animal', emoji:'🦌', name:'Reh', line:'*gentle deer*'},
+  garlic:{kind:'garlic', emoji:'🧄', name:'Garlic', line:'Almost ripe.'},
+  drone:{kind:'drone', emoji:'🚁', name:'Drone', line:'*whirs*'}
+};
+$$('.paletteChip[data-paint]').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    $$('.paletteChip').forEach(x => x.classList.remove('on'));
+    const code = TILE_PALETTE[b.dataset.paint];
+    painting = { type:'tile', code };
+    b.classList.add('on');
+    toast('🖌 paint: ' + b.dataset.paint + ' — tap tiles');
+  });
+});
+$$('.paletteChip[data-npc]').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    $$('.paletteChip').forEach(x => x.classList.remove('on'));
+    const def = NPC_PALETTE[b.dataset.npc];
+    painting = { type:'npc', kind: def.kind, emoji: def.emoji, name: def.name, line: def.line };
+    b.classList.add('on');
+    toast('👤 place ' + def.name + ' — tap a tile');
+  });
+});
+$$('.paletteChip[data-rq]').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if(b.dataset.rq === 'dismiss') hideDialog();
+    if(b.dataset.rq === 'reset'){
+      state.map = DEFAULT_MAP.map(r => r.split(/\s+/));
+      localStorage.removeItem('zw.map');
+      renderMap();
+      toast('map reset');
+    }
+  });
+});
+
+/* ===================== RAIL ACTIONS ===================== */
+$$('#railL .hexBtn').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const app = b.dataset.app;
+    if(app === 'cards') openCards();
+    if(app === 'lib') openLibrary();
+    if(app === 'npc') openPeople();
+    if(app === 'quest') openQuests();
+    if(app === 'cine') openCinema();
+    if(app === 'orb') openOrb();
+  });
+});
+$$('#railR .hexBtn').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const act = b.dataset.act;
+    if(act === 'save'){ save(); toast('💾 saved'); }
+    if(act === 'download'){ downloadMap(); }
+    if(act === 'redqueen'){ toggleRedQueen(!state.redqueen); }
+    if(act === 'dev'){ toggleDev(!state.devOpen); }
+  });
+});
+
+/* ===================== RED QUEEN MODE ===================== */
+function toggleRedQueen(on){
+  state.redqueen = on;
+  document.body.dataset.redqueen = on ? 'on' : 'off';
+  $('#rqBtn').classList.toggle('on', on);
+  if(on){
+    showDialog('👑 Red Queen', 'You wear the red hat. Tap art walls to place images. Tap ☎ to open the phone hub. Download your map for re-upload.',
+      [{label:'Got it', cb:()=>hideDialog()}, {label:'☎ Phone hub', cb:()=>openPhoneHub()}]);
+    toast('👑 Red Queen mode');
+  } else {
+    toast('👑 stepped down');
+  }
+}
+
+/* ===================== DEV MODE ===================== */
+function toggleDev(on){
+  state.devOpen = on;
+  $('#devPanel').classList.toggle('on', on);
+  $('#devBtn').classList.toggle('on', on);
+  if(!on) painting = null;
+  $$('.paletteChip').forEach(x => x.classList.remove('on'));
+  toast(on ? '⚙ dev open' : '⚙ dev closed');
+}
+
+/* ===================== DOWNLOAD / UPLOAD MAP ===================== */
+function downloadMap(){
+  const payload = {
+    format: 'st-pauli-zauberwald',
+    version: '1',
+    saved: new Date().toISOString(),
+    map: state.map,
+    entities: state.entities,
+    art: {}
+  };
+  // include art images as data URLs
+  for(let y = 0; y < state.map.length; y++){
+    for(let x = 0; x < state.map[0].length; x++){
+      const key = 'zw.art_' + x + '_' + y;
+      const url = localStorage.getItem(key);
+      if(url) payload.art[key] = url;
+    }
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 1)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'st-pauli-' + Date.now() + '.json';
+  a.click();
+  toast('📥 map saved');
+}
+$('#fileMap').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if(data.map) state.map = data.map;
+      if(data.entities) state.entities = data.entities;
+      if(data.art){
+        Object.entries(data.art).forEach(([k, v]) => {
+          localStorage.setItem(k, v);
+        });
+      }
+      save();
+      renderMap();
+      toast('📤 map loaded');
+    } catch(err){ toast('load failed'); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+/* ===================== FILE UPLOAD (REAL, WORKING) ===================== */
+/* Files become assets stored in localStorage index. They appear on the
+   matching tile type (image on art walls, etc) and in the Library. */
+$('#fileUp').addEventListener('change', e => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  files.forEach(f => {
+    const url = URL.createObjectURL(f);
+    const kind = kindOf(f);
+    // store in index
+    const assets = JSON.parse(localStorage.getItem('zw.assets') || '[]');
+    assets.push({
+      id: uid('a'),
+      name: f.name.slice(0, 32),
+      kind,
+      url, // session-only (objectURL) — persisting needs base64; see note below
+      added: Date.now()
+    });
+    localStorage.setItem('zw.assets', JSON.stringify(assets));
+    // also try to place on nearest art tile if image
+    if(kind === 'image'){
+      const artTiles = [];
+      state.map.forEach((row, y) => row.forEach((ch, x) => { if(ch === 'A') artTiles.push({x,y}); }));
+      if(artTiles.length){
+        const t = artTiles[Math.floor(Math.random() * artTiles.length)];
+        const reader = new FileReader();
+        reader.onload = () => {
+          localStorage.setItem('zw.art_' + t.x + '_' + t.y, reader.result);
+          renderMap();
+        };
+        reader.readAsDataURL(f);
+      }
+    }
+  });
+  toast('⬆ ' + files.length + ' file' + (files.length > 1 ? 's' : '') + ' added');
+  e.target.value = '';
+});
+function kindOf(file){
+  const n = file.name.toLowerCase(); const t = file.type || '';
+  if(t.startsWith('image/') || /\.(png|jpe?g|gif|webp|heic|avif|svg)$/.test(n)) return 'image';
+  if(t.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/.test(n)) return 'video';
+  if(t.startsWith('audio/') || /\.(mp3|m4a|wav|ogg|opus|aac)$/.test(n)) return 'audio';
+  if(/\.(glb|gltf)$/.test(n)) return '3d';
+  if(/\.pdf$/.test(n)) return 'pdf';
+  if(t.startsWith('text/') || /\.(txt|md|json|csv|html?|css|js|xml)$/.test(n)) return 'text';
+  return 'file';
+}
+
+/* ===================== VIEWER (full bleed, inline) ===================== */
+function openViewer(a){
+  $('#vName').textContent = a.name;
+  const body = $('#viewerBody');
+  body.innerHTML = '';
+  if(a.kind === 'image'){ const im = new Image(); im.src = a.url; body.appendChild(im); }
+  else if(a.kind === 'video'){ const v = document.createElement('video'); v.src = a.url; v.controls = true; v.autoplay = true; v.playsInline = true; body.appendChild(v); }
+  else if(a.kind === 'audio'){ const au = document.createElement('audio'); au.src = a.url; au.controls = true; au.autoplay = true; body.appendChild(au); }
+  else if(a.kind === 'pdf' || a.kind === 'html'){ const f = document.createElement('iframe'); f.src = a.url; body.appendChild(f); }
+  else if(a.kind === '3d'){ const mv = document.createElement('model-viewer'); mv.setAttribute('src', a.url); mv.setAttribute('camera-controls',''); mv.setAttribute('auto-rotate',''); body.appendChild(mv); }
+  else if(a.kind === 'text'){ const p = document.createElement('pre'); p.textContent = a.name + '\n\n(binary/text preview limited)'; body.appendChild(p); }
+  else body.innerHTML = '<div style="color:var(--ink2);padding:20px;text-align:center">cannot preview — download instead</div>';
+  $('#viewer').classList.add('on');
+}
+$('#vClose').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  $('#viewer').classList.remove('on');
+});
+
+/* ===================== APP PANELS (inline in banner) ===================== */
+function openCards(){
+  // Skat-like memory match of assets
+  showBanner([
+    {label:'🃏 Start memory', primary:true, cb:() => startMemory()},
+    {label:'✕ close', cb:() => hideBanner()}
+  ]);
+}
+function startMemory(){
+  const assets = JSON.parse(localStorage.getItem('zw.assets') || '[]');
+  if(assets.length < 4){ toast('upload some files first'); return; }
+  // Show 8 pairs of assets in banner-grid... we'll render inline into dialog
+  const items = [];
+  assets.slice(0, 8).forEach(a => { items.push(a); items.push(a); });
+  items.sort(() => Math.random() - 0.5);
+  showDialog('Memory', 'Match pairs of your media.', [
+    {label:'Ready — show me', cb:() => { /* would need a game view; stub */ toast('🎴 memory started'); }},
+    {label:'✕', cb:()=>hideDialog()}
+  ]);
+}
+function openLibrary(){
+  const assets = JSON.parse(localStorage.getItem('zw.assets') || '[]');
+  showDialog('📚 Library', assets.length + ' assets stored. Tap one to preview.', assets.slice(-6).map(a => ({
+    label: a.name.slice(0, 14),
+    cb: () => openViewer(a)
+  })).concat([{label:'✕ close', cb:()=>hideDialog()}]));
+}
+function openPeople(){
+  showDialog('👥 People', 'Tap to talk.',
+    state.entities.filter(e => e.kind === 'npc').map(en => ({
+      label: en.emoji + ' ' + en.name,
+      cb: () => interactWith(en)
+    })).concat([{label:'✕', cb:()=>hideDialog()}]));
+}
+function openQuests(){
+  showDialog('🗺 Quests', 'Chapters unlock as you explore.',
+    [
+      {label:'I · Home ✓', cb:()=>toast('Chapter I cleared')},
+      {label:'II · Streets', cb:()=>toast('Walk 20 tiles')},
+      {label:'III · Night', cb:()=>toast('Meet 3 NPCs')},
+      {label:'✕ close', cb:()=>hideDialog()}
+    ]);
+}
+function openCinema(){
+  showDialog('🎬 Cinema', 'No cutscene loaded. Upload a video and it plays here.',
+    [{label:'✕', cb:()=>hideDialog()}]);
+}
+function openOrb(){
+  // inline iframe of Peace-Orb
+  $('#vName').textContent = '🔮 Peace-Orb';
+  const body = $('#viewerBody');
+  body.innerHTML = '';
+  const f = document.createElement('iframe');
+  f.src = 'https://worldpeacebtn.github.io/Peace-Orb/';
+  f.setAttribute('allow', 'camera;microphone;accelerometer;gyroscope;xr-spatial-tracking');
+  body.appendChild(f);
+  $('#viewer').classList.add('on');
+}
+
+/* ===================== PHONE HUB ===================== */
+function openPhoneHub(){
+  showDialog('☎ Phone Hub', 'Press any app to launch it inline.',
+    [
+      {label:'🃏 Cards', cb:()=>{ openCards(); return false; }},
+      {label:'📚 Library', cb:()=>{ openLibrary(); return false; }},
+      {label:'👥 People', cb:()=>{ openPeople(); return false; }},
+      {label:'🗺 Quests', cb:()=>{ openQuests(); return false; }},
+      {label:'🎬 Cinema', cb:()=>{ openCinema(); return false; }},
+      {label:'🔮 Orb', cb:()=>{ openOrb(); return false; }},
+      {label:'✕ close', cb:()=>hideDialog()}
+    ]);
+}
+
+/* ===================== VIEW TOGGLE ===================== */
+$('#tsView').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  state.view = state.view === '3d' ? '2d' : '3d';
+  document.body.dataset.view = state.view;
+  $('#tsView').textContent = state.view === '3d' ? '◑ 3D' : '◐ 2D';
+  $('#tsView').classList.toggle('on', state.view === '2d');
+  toast(state.view === '3d' ? '🎮 isometric' : '🗺 top-down');
+});
+
+/* ===================== CHAPTERS ===================== */
+$$('#chaptersInner .chChip').forEach(b => {
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    $$('#chaptersInner .chChip').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    const ch = b.dataset.ch;
+    if(ch === '0'){ toast('📖 Chapter I: Home'); hideDialog(); }
+    if(ch === '1'){ toast('📖 Chapter II: Streets'); }
+    if(ch === '2'){ toast('📖 Chapter III: Night'); }
+    if(ch === '3'){ toggleRedQueen(true); }
+  });
+});
+
+/* ===================== SPARKLES / GLITTER ===================== */
+(function spawnSparkles(){
+  const container = $('#sparkles');
+  const glyphs = ['✨','⭐','💫','🌟','✦'];
+  for(let i = 0; i < 10; i++){
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+    s.style.left = (Math.random() * 100) + '%';
+    s.style.animationDuration = (12 + Math.random() * 12) + 's';
+    s.style.animationDelay = (-Math.random() * 15) + 's';
+    s.style.fontSize = (10 + Math.random() * 12) + 'px';
+    container.appendChild(s);
+  }
+})();
+
+/* ===================== BURST ===================== */
+function burstAt(gx, gy){
+  const map = $('#map');
+  const cols = state.map[0].length, rows = state.map.length;
+  const b = document.createElement('div');
+  b.style.cssText = `position:absolute;
+    left:${(gx + 0.5) / cols * 100}%;top:${(gy + 0.5) / rows * 100}%;
+    width:0;height:0;border-radius:50%;pointer-events:none;z-index:999;
+    transform:translate(-50%,-50%);
+    box-shadow:0 0 60px 30px rgba(255,220,120,.9);
+    animation:burst .55s ease-out forwards`;
+  if(!document.getElementById('burstKf')){
+    const st = document.createElement('style'); st.id = 'burstKf';
+    st.textContent = '@keyframes burst{to{width:180px;height:180px;opacity:0}}';
+    document.head.appendChild(st);
+  }
+  map.appendChild(b);
+  setTimeout(() => b.remove(), 600);
+}
+
+/* ===================== PREVENT ZOOM / PULL ===================== */
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
+document.addEventListener('touchmove', e => {
+  if(e.target.closest('input') || e.target.closest('textarea') ||
+     e.target.closest('#viewerBody')) return;
+  e.preventDefault();
+}, { passive:false });
+
+/* ===================== SOUND (unlock) ===================== */
+let actx = null, audioUnlocked = false;
+document.addEventListener('pointerdown', () => {
+  if(audioUnlocked) return;
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    actx.resume().then(() => {
+      audioUnlocked = true;
+      startAmbient();
+    });
+  } catch(e){}
+}, { once: true });
+function startAmbient(){
+  if(!actx) return;
+  [110, 164, 220].forEach((f, i) => {
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = i % 2 ? 'triangle' : 'sine';
+    o.frequency.value = f;
+    g.gain.value = 0.018;
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+  });
+}
+
+/* ===================== BOOT ===================== */
+window.addEventListener('load', () => {
+  renderMap();
+  setTimeout(() => {
+    showDialog('Steward', 'Welcome to St. Pauli. Walk with the joystick. Tap tiles, tap entities. Lukullus is the eatery. The ☎ is the Red Queen.',
+      [{label:'Begin', cb:()=>hideDialog()},
+       {label:'👑 Red Queen', cb:()=>{ toggleRedQueen(true); }}]);
+  }, 700);
+});
+
+window.addEventListener('resize', () => positionPlayer());
+</script>
+</body>
+</html>
